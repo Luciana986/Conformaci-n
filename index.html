@@ -32,7 +32,7 @@ button.l{border:none;background:none;color:var(--ink);padding:2px 4px;font-weigh
 .row{display:grid;grid-template-columns:1fr auto;gap:1px 12px;padding:10px 12px;border-top:1px solid var(--line);cursor:pointer}
 .row:first-child{border-top:none}.row:hover{background:var(--sf2)}.row .t{font-weight:600;overflow-wrap:anywhere}.row .s{color:var(--mu);font-size:.83rem}
 .row .r{grid-row:1/3;grid-column:2;display:flex;flex-direction:column;align-items:flex-end;gap:3px;justify-content:center}
-.pill{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px}.Pendiente{background:var(--pes);color:var(--pe)}.Conformada{background:var(--oks);color:var(--ok)}.Observada{background:var(--was);color:var(--wa)}
+.pill{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px}.Pendiente{background:var(--pes);color:var(--pe)}.Conformada{background:var(--oks);color:var(--ok)}.Observada{background:var(--was);color:var(--wa)}.Programada{background:var(--sf2);color:var(--mu)}
 .empty{padding:22px 14px;text-align:center;color:var(--mu)}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .head .big{font-size:1.15rem;font-weight:600;white-space:nowrap}
@@ -69,6 +69,10 @@ button.l{border:none;background:none;color:var(--ink);padding:2px 4px;font-weigh
           <div class="g2">
             <div class="f"><label class="lb" for="cResp">Conforma</label><select id="cResp"></select></div>
             <div class="f"><label class="lb" for="cNota">Nota para todas (opcional)</label><input id="cNota" placeholder="Ej.: gasoil de octubre"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label class="lb" for="cSem">¿Cuándo la ve para conformar?</label><select id="cSem"></select></div>
+            <div class="f" id="cSemF" hidden><label class="lb" for="cSemD">Desde el día</label><input id="cSemD" type="date"></div>
           </div>
           <div id="rev" class="col"></div>
         </div>
@@ -126,7 +130,7 @@ let PIN=null,ME=null,FACT=[],tab='Pendiente',cur=null,pad=null,PIECES=[];
 async function entrar(pin){
   try{ME=await api('login',pin);PIN=pin;window.__ok=true;aviso('');
     $('#yo').hidden=false;$('#yoN').textContent=ME.admin?'Administraci\u00f3n':ME.nombre;
-    if(ME.admin){$('#adm').hidden=false;$('#cResp').innerHTML=ME.responsables.map(r=>`<option>${esc(r.nombre)}</option>`).join('')}
+    if(ME.admin){$('#adm').hidden=false;$('#cResp').innerHTML=ME.responsables.map(r=>`<option>${esc(r.nombre)}</option>`).join('');armarSemanas()}
     await cargarLista();
   }catch(e){aviso(errTxt(e),true)}
 }
@@ -135,17 +139,17 @@ async function cargarLista(){
 }
 function pintarLista(){
   $('#vDet').hidden=true;$('#vLista').hidden=false;
-  const pend=FACT.filter(f=>f.estado==='Pendiente');
+  const pend=FACT.filter(f=>f.estado==='Pendiente'&&!f.programada);
   if(ME.admin){$('#sP').textContent=pend.length;$('#sO').textContent=FACT.filter(f=>f.estado==='Observada').length;$('#sC').textContent=FACT.filter(f=>f.estado==='Conformada').length;
     $('#waBtns').innerHTML=ME.responsables.map((r,i)=>{const n=pend.filter(f=>f.responsable===r.nombre).length;return `<button type="button" data-i="${i}" ${n?'':'disabled'}>${esc(r.nombre)} \u00b7 ${n}</button>`}).join('')||'<span class="mu">Sin responsables en Config.</span>';
     $('#waBtns').querySelectorAll('button').forEach(b=>b.onclick=()=>wa(ME.responsables[b.dataset.i]));
     $('#tLista').textContent='Bandeja';
   }else{$('#tLista').textContent=pend.length?`Hola ${ME.nombre}: ten\u00e9s ${pend.length} para conformar`:`Hola ${ME.nombre}: todo al d\u00eda \u2713`}
-  const T=['Pendiente','Observada','Conformada','Todas'];
+  const T=ME.admin?['Pendiente','Programada','Observada','Conformada','Todas']:['Pendiente','Observada','Conformada','Todas'];
   $('#tabs').innerHTML=T.map(t=>`<button type="button" class="${tab===t?'on':''}" data-t="${t}">${t==='Todas'?t:t+'s'}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;pintarLista()});
-  const rows=FACT.filter(f=>tab==='Todas'||f.estado===tab);
-  $('#lista').innerHTML=rows.length?rows.map(f=>`<div class="row" data-id="${esc(f.id)}"><span class="t">${esc(f.proveedor)}</span><span class="r"><span class="mono">${money(f.importe)}</span><span class="pill ${esc(f.estado)}">${esc(f.estado)}</span></span><span class="s">${[f.numero,ME.admin?f.responsable:'',f.estado==='Pendiente'?`hace ${f.dias} d\u00eda${f.dias===1?'':'s'}`:f.resuelta].filter(Boolean).map(esc).join(' \u00b7 ')}</span></div>`).join(''):`<div class="empty">${FACT.length?'No hay facturas en esta vista.':(ME.admin?'Todav\u00eda no hay facturas. Carg\u00e1 la primera arriba.':'No ten\u00e9s facturas asignadas.')}</div>`;
+  const rows=FACT.filter(f=>tab==='Todas'||(tab==='Programada'?(f.programada&&f.estado==='Pendiente'):(f.estado===tab&&!(tab==='Pendiente'&&f.programada))));
+  $('#lista').innerHTML=rows.length?rows.map(f=>`<div class="row" data-id="${esc(f.id)}"><span class="t">${esc(f.proveedor)}</span><span class="r"><span class="mono">${money(f.importe)}</span><span class="pill ${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}">${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}</span></span><span class="s">${[f.fc?'FC '+f.fc:'',f.numero,ME.admin?f.responsable:'',f.programada&&f.estado==='Pendiente'?'se habilita el '+f.desde:f.estado==='Pendiente'?`hace ${f.dias} d\u00eda${f.dias===1?'':'s'}`:f.resuelta].filter(Boolean).map(esc).join(' \u00b7 ')}</span></div>`).join(''):`<div class="empty">${FACT.length?'No hay facturas en esta vista.':(ME.admin?'Todav\u00eda no hay facturas. Carg\u00e1 la primera arriba.':'No ten\u00e9s facturas asignadas.')}</div>`;
   $('#lista').querySelectorAll('.row').forEach(r=>r.onclick=()=>detalle(r.dataset.id));
   // eliminar varias de una vez (solo administraci\u00f3n)
   const bulk=$('#bulk');bulk.innerHTML='';
@@ -160,7 +164,7 @@ function pintarLista(){
   }
 }
 function wa(r){
-  const p=FACT.filter(f=>f.estado==='Pendiente'&&f.responsable===r.nombre);
+  const p=FACT.filter(f=>f.estado==='Pendiente'&&!f.programada&&f.responsable===r.nombre);
   const l=p.slice(0,8).map(f=>`\u2022 ${f.proveedor}${f.numero?' '+f.numero:''} \u2014 ${money(f.importe)}`);if(p.length>8)l.push(`\u2022 y ${p.length-8} m\u00e1s`);
   const t=`Hola ${r.nombre}! Ten\u00e9s ${p.length} factura${p.length===1?'':'s'} para conformar:\n${l.join('\n')}\n\nEntr\u00e1 a tu link y firm\u00e1 cada una:\n${ME.url}${ME.url.indexOf('?')>=0?'&':'?'}t=${r.clave}`;
   window.open('https://wa.me/'+(r.celular||'')+'?text='+encodeURIComponent(t),'_blank');
@@ -265,6 +269,21 @@ $('#cFile').onchange=e=>{if(e.target.files.length)leerArchivos([...e.target.file
 </script>
 <script>
 
+/* ---------- semana en que la ve el responsable ---------- */
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const hoyISO=()=>iso(new Date());
+const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fechaCorta=i=>{const[a,m,d]=i.split('-');return +d+' '+MES[m-1]};
+function lunes(d,n){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=(x.getDay()+6)%7;x.setDate(x.getDate()-w+7*n);return x}
+function armarSemanas(){
+  const hoy=new Date(),nom=['Esta semana','La semana que viene','En 2 semanas','En 3 semanas','En 4 semanas'];
+  const o=['<option value="ya">Ya mismo</option>'];
+  for(let n=0;n<5;n++){const a=lunes(hoy,n),z=new Date(a);z.setDate(z.getDate()+6);o.push(`<option value="${iso(a)}">${nom[n]} (${fechaCorta(iso(a))} al ${fechaCorta(iso(z))})</option>`)}
+  o.push('<option value="otra">Otra fecha\u2026</option>');
+  $('#cSem').innerHTML=o.join('');
+  $('#cSem').onchange=()=>{$('#cSemF').hidden=$('#cSem').value!=='otra'};
+}
+function desdeSel(){const v=$('#cSem').value;if(v==='ya')return '';if(v==='otra')return $('#cSemD').value||'';return v<=hoyISO()?'':v}
 function pagTxt(p){if(p.kind!=='pdf')return 'archivo';const a=p.pages[0]+1,z=p.pages[p.pages.length-1]+1;return a===z?`hoja ${a}`:`hojas ${a}-${z}`}
 function renderRev(){
   const box=$('#rev');
@@ -274,6 +293,7 @@ function renderRev(){
   PIECES.map((p,i)=>`<div class="pc ${p.rev?'rev':''}" data-i="${i}">${p.thumb?`<img class="th" alt="" src="${p.thumb}">`:''}<div class="pf">
     <input data-k="proveedor" placeholder="Proveedor" value="${esc(p.f.proveedor)}" aria-label="Proveedor">
     <div class="g3"><input data-k="numero" placeholder="N\u00b0 comprobante" value="${esc(p.f.numero)}" aria-label="N\u00famero"><input data-k="fecha" type="date" value="${esc(p.f.fecha)}" aria-label="Fecha"><input data-k="importe" inputmode="decimal" placeholder="Importe" value="${esc(impTxt(p.f.importe))}" aria-label="Importe"></div>
+    <div class="g2"><input data-k="fc" placeholder="N\u00b0 FC contable (se estampa en la factura)" value="${esc(p.f.fc||'')}" aria-label="N\u00famero de FC"></div>
     <div class="small mu">${esc(p.file.name)} \u00b7 ${pagTxt(p)}${p.rev?' \u00b7 <b>revis\u00e1 el proveedor</b>':''} ${i>0&&p.kind==='pdf'&&PIECES[i-1].file===p.file?'<button type="button" class="l" data-a="unir">Unir con la anterior</button>':''}<button type="button" class="l" data-a="quitar">Quitar</button></div>
   </div></div>`).join('')+
   `<div class="acts"><button class="p" id="cGo" type="button">Cargar ${n} y enviar a ${esc($('#cResp').value||'\u2026')}</button><button type="button" id="cCancel">Cancelar</button><span id="cMsg" class="mu"></span></div>`;
@@ -305,6 +325,7 @@ async function datosDe(p){
 }
 async function subirTodo(){
   const m=$('#cMsg'),resp=$('#cResp').value,nota=$('#cNota').value.trim();
+  if($('#cSem').value==='otra'&&!$('#cSemD').value){m.textContent='Eleg\u00ed desde qu\u00e9 d\u00eda la ve el responsable.';return}
   const falta=PIECES.findIndex(p=>!String(p.f.proveedor).trim());
   if(falta>=0){m.textContent=`Falta el proveedor de la factura ${falta+1}.`;return}
   for(const p of PIECES){if(parseImp(p.f.importe)===null){m.textContent='Hay un importe que no se entiende. Escribilo como 1.250.000,50';return}}
@@ -313,10 +334,10 @@ async function subirTodo(){
     while(PIECES.length){
       const p=PIECES[0];m.textContent=`Subiendo ${hechas+1} de ${total}\u2026`;
       const d=await datosDe(p);
-      await api('cargar',PIN,{proveedor:String(p.f.proveedor).trim(),numero:String(p.f.numero||'').trim(),fecha:p.f.fecha||'',importe:parseImp(p.f.importe),empresa:'SAML',responsable:resp,nota},d.b64,d.mime,d.nombre);
+      await api('cargar',PIN,{proveedor:String(p.f.proveedor).trim(),numero:String(p.f.numero||'').trim(),fecha:p.f.fecha||'',importe:parseImp(p.f.importe),empresa:'SAML',responsable:resp,nota,fc:String(p.f.fc||'').trim(),desde:desdeSel()},d.b64,d.mime,d.nombre);
       PIECES.shift();hechas++;
     }
-    $('#cFile').value='';$('#cNota').value='';renderRev();toast(`${hechas} factura${hechas===1?'':'s'} cargada${hechas===1?'':'s'}. Ya las ve ${resp}`);tab='Pendiente';await cargarLista();
+    $('#cFile').value='';$('#cNota').value='';renderRev();toast(`${hechas} factura${hechas===1?'':'s'} cargada${hechas===1?'':'s'}. ${desdeSel()>hoyISO()?'Las ve '+resp+' desde el '+fechaCorta(desdeSel()):'Ya las ve '+resp}`);tab=desdeSel()>hoyISO()?'Programada':'Pendiente';await cargarLista();
   }catch(e){renderRev();$('#cMsg').textContent=(hechas?`Se cargaron ${hechas}. `:'')+errTxt(e)}
 }
 ;(window.__B=window.__B||[]).push(6);
@@ -331,7 +352,8 @@ async function detalle(id){
   const puedeFirmar=f.estado==='Pendiente'&&(ME.admin||f.responsable===ME.nombre);
   v.innerHTML=`<div class="col">
    <div class="top"><button class="l" id="volver">\u2190 Volver</button><span class="pill ${esc(f.estado)}">${esc(f.estado)}</span></div>
-   <div class="head"><div><h2>${esc(f.proveedor)}</h2><div class="mu small">${[f.numero,f.fecha,ME.admin?'Conforma: '+f.responsable:''].filter(Boolean).map(esc).join(' \u00b7 ')}</div>${f.nota?`<div class="small">Nota: ${esc(f.nota)}</div>`:''}</div><div class="mono big">${money(f.importe)}</div></div>
+   <div class="head"><div><h2>${esc(f.proveedor)}</h2><div class="mu small">${[f.fc?'FC '+f.fc:'',f.numero,f.fecha,ME.admin?'Conforma: '+f.responsable:''].filter(Boolean).map(esc).join(' \u00b7 ')}</div>${f.nota?`<div class="small">Nota: ${esc(f.nota)}</div>`:''}</div><div class="mono big">${money(f.importe)}</div></div>
+   ${ME.admin&&f.estado==='Pendiente'?`<div class="panel"><div class="g2"><div class="f"><label class="lb" for="eFc">N\u00b0 FC contable</label><input id="eFc" value="${esc(f.fc)}" placeholder="Ej.: 506"></div><div class="f"><label class="lb" for="eDes">La ve el responsable desde</label><input id="eDes" type="date" value="${esc(f.desdeISO||'')}"></div></div><div class="acts"><button type="button" id="eSave">Guardar</button><span id="eMsg" class="mu small">${f.programada?'Programada: se habilita el '+esc(f.desde):''}</span></div></div>`:''}
    <div class="doc" id="doc"><span class="mu">Cargando factura\u2026</span></div>
    ${f.estado!=='Pendiente'?`<div class="stamp ${f.estado==='Observada'?'o':''}"><b>${f.estado.toUpperCase()}</b> \u00b7 ${esc(f.responsable)} \u00b7 ${esc(f.resuelta)}${f.comentario?` \u00b7 \u201c${esc(f.comentario)}\u201d`:''}</div>`:''}
    ${puedeFirmar?`<div class="panel">
@@ -343,6 +365,7 @@ async function detalle(id){
   </div>`;
   $('#volver').onclick=()=>{cur=null;pintarLista()};
   if(puedeFirmar){pad=makePad($('#sig'));$('#borrar').onclick=()=>pad.clear();$('#bOk').onclick=()=>resolver('Conformada');$('#bObs').onclick=()=>resolver('Observada')}
+  if($('#eSave'))$('#eSave').onclick=async()=>{$('#eSave').disabled=true;try{const r=await api('editar',PIN,f.id,{fc:$('#eFc').value.trim(),desde:$('#eDes').value});Object.assign(f,r);$('#eMsg').textContent='Guardado \u2713';await cargarLista().then(()=>{})}catch(e){$('#eMsg').textContent=errTxt(e);$('#eSave').disabled=false}};
   if($('#bRe'))$('#bRe').onclick=async()=>{try{await api('reabrir',PIN,f.id);toast('Volvi\u00f3 a pendientes');await cargarLista()}catch(e){toast(errTxt(e))}};
   if($('#bDel'))$('#bDel').onclick=()=>{
     $('#delArea').innerHTML=`<div class="msg err">\u00bfEliminar esta factura? Se borra de la planilla y sus archivos van a la papelera de Drive.<div class="acts" style="margin-top:8px"><button type="button" id="delYes" style="color:var(--bad)">S\u00ed, eliminar</button><button type="button" id="delNo">Cancelar</button></div></div>`;
@@ -401,7 +424,9 @@ async function constancia(f,a,firma,com,estado){
   page.drawRectangle({x:M,y:5,width:W-2*M,height:h-9,borderColor:col,borderWidth:1.5,color:rgb(1,1,1)});
   const ahora=new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
   let y=h-20;
-  page.drawText(`${ok?'CONFORMADO':'OBSERVADO'}  \u00b7  ${f.responsable}  \u00b7  ${ahora} hs`,{x:M+8,y,size:10,font:bold,color:col});y-=11;
+  let tx=M+8;
+  if(f.fc){const t='FC '+f.fc;page.drawText(t,{x:tx,y,size:12,font:bold,color:rgb(.1,.1,.1)});tx+=bold.widthOfTextAtSize(t,12)+10}
+  page.drawText(`${ok?'CONFORMADO':'OBSERVADO'}  \u00b7  ${f.responsable}  \u00b7  ${ahora} hs`,{x:tx,y,size:10,font:bold,color:col});y-=11;
   page.drawText(`${f.proveedor}${f.numero?'  \u00b7  '+f.numero:''}`.slice(0,90),{x:M+8,y,size:7,font,color:rgb(.4,.4,.4)});y-=11;
   lines.forEach(l=>{page.drawText(l,{x:M+8,y,size,font,color:rgb(.1,.1,.1)});y-=10});
   if(firma){const sig=await out.embedPng(bytesDe(firma)),sx=W-M-sigW-8,sy=11;page.drawImage(sig,{x:sx,y:sy,width:sigW,height:sigH})}
