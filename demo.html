@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{--bg:#f3f5f6;--sf:#fff;--sf2:#e9edef;--line:#d3dade;--fg:#17232b;--mu:#5b6a73;--ink:#1f4e8c;--ok:#1d7a4a;--oks:#dff1e7;--wa:#a85d06;--was:#fbeedb;--pe:#5a5f9e;--pes:#e6e7f6;--bad:#b03a2e;--bads:#f8e1de}
+@media (prefers-color-scheme:dark){:root{--bg:#11181d;--sf:#18222a;--sf2:#202c35;--line:#2d3b45;--fg:#e4eaee;--mu:#93a3ad;--ink:#7fb0f0;--ok:#5cc98d;--oks:#173527;--wa:#e8a54d;--was:#3a2a14;--pe:#a9acec;--pes:#262849;--bad:#ef8a7e;--bads:#3b1f1c;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 "IBM Plex Sans",system-ui,sans-serif}
+.w{max-width:900px;margin:0 auto;padding:14px 14px 50px;display:flex;flex-direction:column;gap:12px}
+.col{display:flex;flex-direction:column;gap:12px}
+h1,h2,h3{font-family:Archivo,Arial,sans-serif;margin:0}
+h1{font-size:1.3rem;font-weight:800}h2{font-size:1.05rem}h3{font-size:.95rem}
+.mu{color:var(--mu)}.small{font-size:.85rem}.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.lb{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mu);font-weight:600}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--sf);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:44px;resize:vertical}
+button,a.btn{font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--line);background:var(--sf);color:var(--fg);padding:9px 14px;cursor:pointer;text-decoration:none;display:inline-block}
+button.p{background:var(--ink);border-color:var(--ink);color:var(--sf)}button.ok{background:var(--ok);border-color:var(--ok);color:var(--sf)}
+button.l{border:none;background:none;color:var(--ink);padding:2px 4px;font-weight:600}button:disabled{opacity:.5}
+.panel{background:var(--sf);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.g3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px}
+@media(max-width:520px){.g3{grid-template-columns:1fr 1fr}.g3 input:first-child{grid-column:1/-1}}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.stats{display:flex;gap:8px;flex-wrap:wrap}.st{flex:1 1 100px;background:var(--sf);border:1px solid var(--line);border-radius:10px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}.st b{font:800 1.3rem Archivo,sans-serif}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button{border-radius:999px;padding:5px 11px;font-size:.85rem}.tabs button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.list{background:var(--sf);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:grid;grid-template-columns:1fr auto;gap:1px 12px;padding:10px 12px;border-top:1px solid var(--line);cursor:pointer}
+.row:first-child{border-top:none}.row:hover{background:var(--sf2)}.row .t{font-weight:600;overflow-wrap:anywhere}.row .s{color:var(--mu);font-size:.83rem}
+.row .r{grid-row:1/3;grid-column:2;display:flex;flex-direction:column;align-items:flex-end;gap:3px;justify-content:center}
+.pill{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px}.Pendiente{background:var(--pes);color:var(--pe)}.Conformada{background:var(--oks);color:var(--ok)}.Observada{background:var(--was);color:var(--wa)}.Programada{background:var(--sf2);color:var(--mu)}
+.empty{padding:22px 14px;text-align:center;color:var(--mu)}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.head .big{font-size:1.15rem;font-weight:600;white-space:nowrap}
+.doc{background:var(--sf2);border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:6px;align-items:center;max-height:44vh;overflow:auto}
+.doc img,.doc canvas{max-width:100%;height:auto;background:#fff;border-radius:4px}
+.sig{width:100%;max-width:520px;aspect-ratio:4/1;background:#fff;border:1.5px dashed var(--line);border-radius:8px;touch-action:none;display:block}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.msg{padding:10px 12px;border-radius:10px;background:var(--pes);overflow-wrap:anywhere}.msg.err{background:var(--bads)}
+.stamp{border:2px solid var(--ok);color:var(--ok);border-radius:8px;padding:6px 10px;font-size:.9rem}.stamp.o{border-color:var(--wa);color:var(--wa)}
+.pc{display:flex;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg)}
+.pc.rev{border-color:var(--wa);background:var(--was)}
+.pc .th{width:64px;height:90px;object-fit:cover;object-position:top;border-radius:4px;border:1px solid var(--line);background:#fff;flex:none}
+.pc .pf{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;max-width:calc(100% - 32px)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body><div style='background:#7c3aed;color:#fff;text-align:center;padding:6px;font:600 13px sans-serif'>VERSIÓN DE DEMOSTRACIÓN · datos inventados, no se guarda nada</div>
+<div class="w">
+  <div class="top">
+    <div><div class="lb">Administración · campo</div><h1>Conformación de facturas</h1></div>
+    <div id="yo" class="mu" hidden><span id="yoN"></span></div>
+  </div>
+  <div id="aviso" class="msg">Abriendo…</div>
+
+  <!-- LISTA -->
+  <section id="vLista" hidden>
+    <div class="col">
+      <div id="adm" hidden class="col">
+        <div class="stats"><div class="st"><span class="lb">Pendientes</span><b id="sP">0</b></div><div class="st"><span class="lb">Observadas</span><b id="sO">0</b></div><div class="st"><span class="lb">Conformadas</span><b id="sC">0</b></div></div>
+        <div class="panel">
+          <h2>Cargar facturas</h2>
+          <div class="f"><label class="lb" for="cFile">PDF (puede traer varias facturas) o fotos</label><input id="cFile" type="file" multiple accept="application/pdf,image/*"></div>
+          <div class="g2">
+            <div class="f"><label class="lb" for="cResp">Conforma</label><select id="cResp"></select></div>
+            <div class="f"><label class="lb" for="cNota">Nota para todas (opcional)</label><input id="cNota" placeholder="Ej.: gasoil de octubre"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label class="lb" for="cSem">¿Cuándo la ve para conformar?</label><select id="cSem"></select></div>
+            <div class="f" id="cSemF" hidden><label class="lb" for="cSemD">Desde el día</label><input id="cSemD" type="date"></div>
+          </div>
+          <div id="rev" class="col"></div>
+        </div>
+        <div class="panel"><div class="top"><h3>Avisar por WhatsApp</h3><div class="acts" id="waBtns"></div></div></div>
+      </div>
+      <div class="top"><h2 id="tLista">Bandeja</h2><div class="tabs" id="tabs"></div></div>
+      <div id="bulk"></div>
+      <div class="list" id="lista"><div class="empty">Cargando…</div></div>
+    </div>
+  </section>
+
+  <!-- DETALLE -->
+  <section id="vDet" hidden></section>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+/* diagnostico: si algun bloque falla, la pagina lo informa en pantalla */
+window.__B=[];window.__errs=[];
+window.addEventListener('error',function(e){window.__errs.push(String(e.message||'error')+' (linea '+(e.lineno||'?')+', col '+(e.colno||'?')+')')});
+setTimeout(function(){var el=document.getElementById('aviso');if(!el)return;
+ if(window.__B.length<9){el.hidden=false;el.className='msg err';el.textContent='La p\u00e1gina no pudo arrancar. Bloques cargados: '+(window.__B.join(',')||'ninguno')+' de 9. Errores: '+window.__errs.join(' | ')}},6000);
+setTimeout(function(){var el=document.getElementById('aviso');if(el&&!window.__ok&&window.__B.length>=9){el.hidden=false;el.className='msg err';el.textContent='Google est\u00e1 tardando en responder. Recarg\u00e1 la p\u00e1gina con Ctrl+F5.'}},30000);
+</script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>Number(n||0).toLocaleString('es-AR',{style:'currency',currency:'ARS'});
+const QS=new URLSearchParams(location.search);
+const API_URL=QS.get('a')?'https://script.google.com/macros/s/'+String(QS.get('a')).replace(/[^\w-]/g,'')+'/exec':'';
+const DEMO_PDF='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';
+const dHoy=new Date(),dIso=d=>d.toISOString().slice(0,10),dDm=d=>d.toLocaleDateString('es-AR');
+const mk=(id,p,n,fe,im,r,e,extra)=>Object.assign({id,cargada:'x',proveedor:p,numero:n,fecha:fe,importe:im,empresa:'Demo S.A.',responsable:r,nota:'',estado:e,resuelta:'',comentario:'',constancia:'',fc:'',desde:'',desdeISO:'',programada:false,dias:1},extra||{});
+const dSig=new Date(dHoy.getTime()+7*864e5);
+let DB=[mk('d1','Taller Mec\u00e1nico Del Sur','A 0003-00012345','27/10/2026',185000,'Osky','Pendiente',{nota:'Service camioneta Hilux',dias:2}),
+mk('d2','Repuestos Ruta 5','A 0001-00004410','28/10/2026',64500,'Osky','Pendiente'),
+mk('d3','Agroinsumos Demo','A 0005-00002231','23/10/2026',2150000,'Colo','Observada',{resuelta:'25/10/2026 17:02',comentario:'Faltan 20 bolsas',dias:5}),
+mk('d4','Ferreter\u00eda Central','B 0002-00098811','26/10/2026',96320,'Osky','Conformada',{resuelta:'27/10/2026 09:15',comentario:'Recibido OK',fc:'10234',dias:3}),
+mk('d5','Combustibles Demo','A 0007-00001520','28/10/2026',780000,'Osky','Pendiente',{fc:'10240',desde:dDm(dSig),desdeISO:dIso(dSig),programada:true})];
+const api=async(fn,...a)=>{
+  await new Promise(r=>setTimeout(r,250));
+  const k=QS.get('t')||'usuario',adm=k==='admin';
+  const vis=()=>adm?DB:DB.filter(f=>f.responsable==='Osky'&&!f.programada);
+  if(fn==='login')return adm?{nombre:'Administraci\u00f3n',admin:true,url:'',responsables:[{nombre:'Osky',clave:'usuario',celular:''},{nombre:'Colo',clave:'colo',celular:''}]}:{nombre:'Osky',admin:false,url:''};
+  if(fn==='listar')return JSON.parse(JSON.stringify(vis()));
+  if(fn==='verArchivo')return {mime:'application/pdf',b64:DEMO_PDF,nombre:'factura.pdf'};
+  if(fn==='resolver'){const f=DB.find(x=>x.id===a[1]);if(f){f.estado=a[2];f.comentario=a[3];f.resuelta=dDm(new Date());f.constancia='x'}return null}
+  if(fn==='reabrir'){const f=DB.find(x=>x.id===a[1]);if(f){f.estado='Pendiente';f.resuelta='';f.comentario=''}return null}
+  if(fn==='eliminar'){DB=DB.filter(x=>!a[1].includes(x.id));return null}
+  if(fn==='editar'){const f=DB.find(x=>x.id===a[1]);if(f){f.fc=a[2].fc;}return null}
+  if(fn==='cargar'){const m=a[1];DB.push(mk('n'+Date.now(),m.proveedor,m.numero,m.fecha,m.importe,m.responsable,'Pendiente',{fc:m.fc,nota:m.nota}));return null}
+  return null;
+};
+function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,3500)}
+function aviso(t,err){const e=$('#aviso');e.hidden=!t;e.textContent=t||'';e.classList.toggle('err',!!err)}
+const errTxt=e=>(e&&e.message||String(e)).replace(/^Error:\s*/,'');
+const bytesDe=b=>{const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u};
+const b64De=file=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ko;r.readAsDataURL(file)});
+function load(src){return new Promise((ok,ko)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=ko;document.head.appendChild(s)})}
+
+let PIN=null,ME=null,FACT=[],tab='Pendiente',cur=null,pad=null,PIECES=[];
+;(window.__B=window.__B||[]).push(1);
+</script>
+<script>
+
+/* ---------- sesi\u00f3n ---------- */
+async function entrar(pin){
+  try{ME=await api('login',pin);PIN=pin;window.__ok=true;aviso('');
+    $('#yo').hidden=false;$('#yoN').textContent=ME.admin?'Administraci\u00f3n':ME.nombre;
+    if(ME.admin){$('#adm').hidden=false;$('#cResp').innerHTML=ME.responsables.map(r=>`<option>${esc(r.nombre)}</option>`).join('');armarSemanas()}
+    await cargarLista();
+  }catch(e){aviso(errTxt(e),true)}
+}
+async function cargarLista(){
+  try{FACT=await api('listar',PIN);pintarLista()}catch(e){aviso(errTxt(e),true)}
+}
+function pintarLista(){
+  $('#vDet').hidden=true;$('#vLista').hidden=false;
+  const pend=FACT.filter(f=>f.estado==='Pendiente'&&!f.programada);
+  if(ME.admin){$('#sP').textContent=pend.length;$('#sO').textContent=FACT.filter(f=>f.estado==='Observada').length;$('#sC').textContent=FACT.filter(f=>f.estado==='Conformada').length;
+    $('#waBtns').innerHTML=ME.responsables.map((r,i)=>{const n=pend.filter(f=>f.responsable===r.nombre).length;return `<button type="button" data-i="${i}" ${n?'':'disabled'}>${esc(r.nombre)} · ${n}</button>`}).join('')||'<span class="mu">Sin responsables en Config.</span>';
+    $('#waBtns').querySelectorAll('button').forEach(b=>b.onclick=()=>wa(ME.responsables[b.dataset.i]));
+    $('#tLista').textContent='Bandeja';
+  }else{$('#tLista').textContent=pend.length?`Hola ${ME.nombre}: ten\u00e9s ${pend.length} para conformar`:`Hola ${ME.nombre}: todo al d\u00eda \u2713`}
+  const T=ME.admin?['Pendiente','Programada','Observada','Conformada','Todas']:['Pendiente','Observada','Conformada','Todas'];
+  $('#tabs').innerHTML=T.map(t=>`<button type="button" class="${tab===t?'on':''}" data-t="${t}">${t==='Todas'?t:t+'s'}</button>`).join('');
+  $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;pintarLista()});
+  const rows=FACT.filter(f=>tab==='Todas'||(tab==='Programada'?(f.programada&&f.estado==='Pendiente'):(f.estado===tab&&!(tab==='Pendiente'&&f.programada))));
+  $('#lista').innerHTML=rows.length?rows.map(f=>`<div class="row" data-id="${esc(f.id)}"><span class="t">${esc(f.proveedor)}</span><span class="r"><span class="mono">${money(f.importe)}</span><span class="pill ${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}">${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}</span></span><span class="s">${[f.fc?'FC '+f.fc:'',f.numero,ME.admin?f.responsable:'',f.programada&&f.estado==='Pendiente'?'se habilita el '+f.desde:f.estado==='Pendiente'?`hace ${f.dias} d\u00eda${f.dias===1?'':'s'}`:f.resuelta].filter(Boolean).map(esc).join(' · ')}</span></div>`).join(''):`<div class="empty">${FACT.length?'No hay facturas en esta vista.':(ME.admin?'Todav\u00eda no hay facturas. Carg\u00e1 la primera arriba.':'No ten\u00e9s facturas asignadas.')}</div>`;
+  $('#lista').querySelectorAll('.row').forEach(r=>r.onclick=()=>detalle(r.dataset.id));
+  // eliminar varias de una vez (solo administraci\u00f3n)
+  const bulk=$('#bulk');bulk.innerHTML='';
+  if(ME.admin&&rows.length){
+    bulk.innerHTML=`<button type="button" class="l" id="bulkBtn" style="color:var(--bad)">Eliminar las ${rows.length} de esta vista\u2026</button>`;
+    $('#bulkBtn').onclick=()=>{
+      const et=tab==='Todas'?'TODAS':tab.toLowerCase()+'s';
+      bulk.innerHTML=`<div class="msg err">\u00bfEliminar las ${rows.length} facturas (${esc(et)})? Se borran de la planilla y sus archivos van a la papelera de Drive.<div class="acts" style="margin-top:8px"><button type="button" id="bulkYes" style="color:var(--bad)">S\u00ed, eliminar ${rows.length}</button><button type="button" id="bulkNo">Cancelar</button></div></div>`;
+      $('#bulkNo').onclick=()=>pintarLista();
+      $('#bulkYes').onclick=async()=>{$('#bulkYes').disabled=true;try{const n=await api('eliminar',PIN,rows.map(r=>r.id));toast(`${n} factura${n===1?'':'s'} eliminada${n===1?'':'s'}`);await cargarLista()}catch(e){toast(errTxt(e));pintarLista()}};
+    };
+  }
+}
+function wa(r){
+  const p=FACT.filter(f=>f.estado==='Pendiente'&&!f.programada&&f.responsable===r.nombre);
+  const l=p.slice(0,8).map(f=>`\u2022 ${f.proveedor}${f.numero?' '+f.numero:''} \u2014 ${money(f.importe)}`);if(p.length>8)l.push(`\u2022 y ${p.length-8} m\u00e1s`);
+  const t=`Hola ${r.nombre}! Ten\u00e9s ${p.length} factura${p.length===1?'':'s'} para conformar:\n${l.join('\n')}\n\nEntr\u00e1 a tu link y firm\u00e1 cada una:\n${ME.url}${ME.url.indexOf('?')>=0?'&':'?'}t=${r.clave}`;
+  window.open('https://wa.me/'+(r.celular||'')+'?text='+encodeURIComponent(t),'_blank');
+}
+;(window.__B=window.__B||[]).push(2);
+</script>
+<script>
+
+/* ---------- lectura autom\u00e1tica de facturas ---------- */
+let pdfjsP=null;
+const pdfjs=()=>pdfjsP||(pdfjsP=(async()=>{const v='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';await load(v+'pdf.worker.min.js');await load(v+'pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc=v+'pdf.worker.min.js';return pdfjsLib})());
+let tessP=null;
+const tess=()=>tessP||(tessP=load('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js').then(()=>Tesseract.createWorker('spa')));
+async function ocr(canvas){const w=await tess();return (await w.recognize(canvas)).data.text}
+
+async function textoDePagina(page){
+  const tc=await page.getTextContent();
+  const items=tc.items.filter(i=>i.str&&i.str.trim()!=='');
+  const rows=[];
+  for(const it of items){const y=it.transform[5];let row=rows.find(r=>Math.abs(r.y-y)<=3);if(!row){row={y,items:[]};rows.push(row)}row.items.push(it)}
+  rows.sort((a,b)=>b.y-a.y);
+  return rows.map(r=>{r.items.sort((a,b)=>a.transform[4]-b.transform[4]);let s='',end=null;
+    for(const it of r.items){const x=it.transform[4];if(end!==null)s+=(x-end>20?' \u00a6 ':' ');s+=it.str.trim();end=x+(it.width||0)}return s}).join('\n');
+}
+const CLIENTE=/serviagro|mari\s*lauqu|\bsaml\b/i;
+const TIPOS={1:'A',6:'B',11:'C',51:'M',19:'E',2:'ND A',7:'ND B',12:'ND C',3:'NC A',8:'NC B',13:'NC C'};
+const limpiar=s=>String(s||'').replace(/[\u00a6|]/g,' ').replace(/\s+/g,' ').trim();
+const arNum=s=>{const n=Number(String(s).replace(/\./g,'').replace(',','.'));return isFinite(n)?n:null};
+function extraer(text){
+  const r={proveedor:'',numero:'',fecha:'',importe:null,rev:false};
+  let m;const re=/Raz[o\u00f3]n\s+Social:?\s*\u00a6?\s*([^\u00a6\n]+)/gi;
+  while((m=re.exec(text))){const v=limpiar(m[1]);if(v.length>2&&!CLIENTE.test(v)){r.proveedor=v;break}}
+  if(!r.proveedor){
+    const stop=/^(original|duplicado|triplicado|factura|nota|recibo|comprobante|cod|fecha|cuit|ingresos|domicilio|p[a\u00e1]g|c\.?u\.?i\.?t)/i;
+    for(const ln of text.split('\n').slice(0,12)){const seg=limpiar(ln.split('\u00a6')[0]);
+      if(seg.length>=4&&/[A-Za-z\u00c1\u00c9\u00cdÓ\u00da\u00d1]{3}/.test(seg)&&!stop.test(seg)&&!CLIENTE.test(seg)){r.proveedor=seg;r.rev=true;break}}
+  }
+  const t=text.replace(/\u00a6/g,' ');
+  m=t.match(/Punto\s+de\s+Venta:?\s*(\d{1,5})[\s\S]{0,60}?Comp\.?\s*(?:Nro|N[\u00b0\u00bao]|N[\u00fau]mero)\.?:?\s*(\d{1,8})/i)||t.match(/\b(\d{4,5})\s*-\s*(\d{8})\b/);
+  if(m){let tipo='';const c=t.match(/C[o\u00f3]d\.?\s*0*(\d{1,3})\b/i);
+    if(c&&TIPOS[+c[1]])tipo=TIPOS[+c[1]];
+    else if(/nota\s+de\s+cr[e\u00e9]dito/i.test(t))tipo='NC';
+    else{const l=t.match(/\b[Ff][Aa][Cc][Tt][Uu][Rr][Aa]\s+([ABCME])\b/);if(l)tipo=l[1]}
+    r.numero=[tipo,String(Number(m[1])).padStart(4,'0')+'-'+m[2].padStart(8,'0')].filter(Boolean).join(' ');
+  }
+  m=t.match(/Fecha\s+de\s+Emisi[o\u00f3]n:?\s*(\d{2})[/](\d{2})[/](\d{4})/i)||t.match(/\b(\d{2})[/](\d{2})[/](20\d{2})\b/);
+  if(m)r.fecha=`${m[3]}-${m[2]}-${m[1]}`;
+  let im=[...t.matchAll(/Importe\s+Total:?\s*\$?\s*([\d.]+,\d{2})/gi)].map(x=>arNum(x[1]));
+  if(!im.length)im=[...t.matchAll(/\bTOTAL\b:?\s*\$?\s*([\d.]+,\d{2})/gi)].map(x=>arNum(x[1]));
+  if(im.length)r.importe=im[im.length-1];
+  return r;
+}
+const impTxt=n=>n==null?'':Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const parseImp=s=>{s=String(s||'').trim().replace(/\$|\s/g,'');if(!s)return '';if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');else if((s.match(/\./g)||[]).length>1)s=s.replace(/\./g,'');const n=Number(s);return isFinite(n)?n:null};
+
+async function thumbDe(canvas){const k=120/canvas.width,c=document.createElement('canvas');c.width=120;c.height=Math.round(canvas.height*k);c.getContext('2d').drawImage(canvas,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.6)}
+;(window.__B=window.__B||[]).push(3);
+</script>
+<script>
+
+async function leerArchivos(files){
+  PIECES=[];renderRev();
+  const msg=t=>{$('#rev').innerHTML=`<div class="msg">${esc(t)}</div>`};
+  for(let fi=0;fi<files.length;fi++){
+    const file=files[fi];
+    try{
+      if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+        const bytes=new Uint8Array(await file.arrayBuffer());
+        const lib=await pdfjs();const doc=await lib.getDocument({data:bytes.slice()}).promise;
+        const src={bytes,doc:null};let prev=null;
+        for(let p=1;p<=doc.numPages;p++){
+          msg(`Leyendo ${file.name}: hoja ${p} de ${doc.numPages}\u2026`);
+          const page=await doc.getPage(p);
+          const vp=page.getViewport({scale:0.4}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+          await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+          let text=await textoDePagina(page);
+          if(text.replace(/\s/g,'').length<25){   // hoja escaneada: se lee con OCR
+            try{const v2=page.getViewport({scale:2}),c2=document.createElement('canvas');c2.width=v2.width;c2.height=v2.height;
+              await page.render({canvasContext:c2.getContext('2d'),viewport:v2}).promise;text=await ocr(c2)}catch(e){text=''}}
+          const info=extraer(text);
+          const seguida=prev&&((info.numero&&prev.f.numero&&info.numero===prev.f.numero)||(!info.numero&&info.importe==null&&!info.proveedor&&(prev.f.numero||prev.f.importe!=null)));
+          if(seguida){prev.pages.push(p-1);if(info.importe!=null)prev.f.importe=info.importe}
+          else{prev={kind:'pdf',file,src,pages:[p-1],thumb:await thumbDe(cv),rev:info.rev||!info.proveedor,f:{proveedor:info.proveedor,numero:info.numero,fecha:info.fecha,importe:info.importe}};PIECES.push(prev)}
+        }
+      }else{
+        msg(`Leyendo ${file.name}\u2026`);
+        const img=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src=URL.createObjectURL(file)});
+        const k=Math.min(1,2200/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=img.width*k;cv.height=img.height*k;
+        const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(img,0,0,cv.width,cv.height);
+        let text='';try{text=await ocr(cv)}catch(e){text=''}
+        const info=extraer(text);
+        PIECES.push({kind:'img',file,pages:[0],thumb:await thumbDe(cv),rev:info.rev||!info.proveedor,f:{proveedor:info.proveedor,numero:info.numero,fecha:info.fecha,importe:info.importe}});
+      }
+    }catch(e){
+      PIECES.push({kind:'raw',file,pages:[0],thumb:'',rev:true,f:{proveedor:'',numero:'',fecha:'',importe:null}});
+    }
+  }
+  renderRev();
+}
+$('#cFile').onchange=e=>{if(e.target.files.length)leerArchivos([...e.target.files])};
+;(window.__B=window.__B||[]).push(4);
+</script>
+<script>
+
+/* ---------- semana en que la ve el responsable ---------- */
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const hoyISO=()=>iso(new Date());
+const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fechaCorta=i=>{const[a,m,d]=i.split('-');return +d+' '+MES[m-1]};
+function lunes(d,n){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=(x.getDay()+6)%7;x.setDate(x.getDate()-w+7*n);return x}
+function armarSemanas(){
+  const hoy=new Date(),nom=['Esta semana','La semana que viene','En 2 semanas','En 3 semanas','En 4 semanas'];
+  const o=['<option value="ya">Ya mismo</option>'];
+  for(let n=0;n<5;n++){const a=lunes(hoy,n),z=new Date(a);z.setDate(z.getDate()+6);o.push(`<option value="${iso(a)}">${nom[n]} (${fechaCorta(iso(a))} al ${fechaCorta(iso(z))})</option>`)}
+  o.push('<option value="otra">Otra fecha\u2026</option>');
+  $('#cSem').innerHTML=o.join('');
+  $('#cSem').onchange=()=>{$('#cSemF').hidden=$('#cSem').value!=='otra'};
+}
+function desdeSel(){const v=$('#cSem').value;if(v==='ya')return '';if(v==='otra')return $('#cSemD').value||'';return v<=hoyISO()?'':v}
+function pagTxt(p){if(p.kind!=='pdf')return 'archivo';const a=p.pages[0]+1,z=p.pages[p.pages.length-1]+1;return a===z?`hoja ${a}`:`hojas ${a}-${z}`}
+function renderRev(){
+  const box=$('#rev');
+  if(!PIECES.length){box.innerHTML='';return}
+  const n=PIECES.length;
+  box.innerHTML=`<div class="small mu">${n} factura${n===1?'':'s'} detectada${n===1?'':'s'}. Revis\u00e1 los datos y carg\u00e1.</div>`+
+  PIECES.map((p,i)=>`<div class="pc ${p.rev?'rev':''}" data-i="${i}">${p.thumb?`<img class="th" alt="" src="${p.thumb}">`:''}<div class="pf">
+    <input data-k="proveedor" placeholder="Proveedor" value="${esc(p.f.proveedor)}" aria-label="Proveedor">
+    <div class="g3"><input data-k="numero" placeholder="N\u00b0 comprobante" value="${esc(p.f.numero)}" aria-label="N\u00famero"><input data-k="fecha" type="date" value="${esc(p.f.fecha)}" aria-label="Fecha"><input data-k="importe" inputmode="decimal" placeholder="Importe" value="${esc(impTxt(p.f.importe))}" aria-label="Importe"></div>
+    <div class="g2"><input data-k="fc" placeholder="N\u00b0 FC contable (se estampa en la factura)" value="${esc(p.f.fc||'')}" aria-label="N\u00famero de FC"></div>
+    <div class="small mu">${esc(p.file.name)} · ${pagTxt(p)}${p.rev?' · <b>revis\u00e1 el proveedor</b>':''} ${i>0&&p.kind==='pdf'&&PIECES[i-1].file===p.file?'<button type="button" class="l" data-a="unir">Unir con la anterior</button>':''}<button type="button" class="l" data-a="quitar">Quitar</button></div>
+  </div></div>`).join('')+
+  `<div class="acts"><button class="p" id="cGo" type="button">Cargar ${n} y enviar a ${esc($('#cResp').value||'\u2026')}</button><button type="button" id="cCancel">Cancelar</button><span id="cMsg" class="mu"></span></div>`;
+  box.querySelectorAll('.pc').forEach(c=>{const i=+c.dataset.i;
+    c.querySelectorAll('input[data-k]').forEach(inp=>inp.oninput=()=>{PIECES[i].f[inp.dataset.k]=inp.dataset.k==='importe'?inp.value:inp.value;if(inp.dataset.k==='proveedor'){PIECES[i].rev=false;c.classList.remove('rev')}});
+    c.querySelectorAll('button[data-a]').forEach(b=>b.onclick=()=>{
+      if(b.dataset.a==='quitar'){PIECES.splice(i,1)}
+      else{const a=PIECES[i-1],x=PIECES[i];a.pages=a.pages.concat(x.pages);for(const k of ['proveedor','numero','fecha'])if(!a.f[k])a.f[k]=x.f[k];if(x.f.importe!=null&&x.f.importe!=='')a.f.importe=x.f.importe;PIECES.splice(i,1)}
+      renderRev()});
+  });
+  $('#cCancel').onclick=()=>{PIECES=[];$('#cFile').value='';renderRev()};
+  $('#cGo').onclick=subirTodo;
+}
+$('#cResp').onchange=()=>{if(PIECES.length)renderRev()};
+;(window.__B=window.__B||[]).push(5);
+</script>
+<script>
+
+async function datosDe(p){
+  const nombre=(p.f.proveedor||'factura').replace(/[\[/]:*?"<>|]/g,'-').replace(/[.\s]+$/,'')||'factura';
+  if(p.kind==='pdf'){
+    const {PDFDocument}=PDFLib;
+    const src=p.src.doc||(p.src.doc=await PDFDocument.load(p.src.bytes,{ignoreEncryption:true}));
+    const out=await PDFDocument.create();(await out.copyPages(src,p.pages)).forEach(x=>out.addPage(x));
+    return{b64:await out.saveAsBase64(),mime:'application/pdf',nombre:nombre+'.pdf'};
+  }
+  const ext=(p.file.name.match(/\.\w+$/)||['.jpg'])[0];
+  return{b64:await b64De(p.file),mime:p.file.type||(p.kind==='raw'&&/\.pdf$/i.test(p.file.name)?'application/pdf':'image/jpeg'),nombre:nombre+ext};
+}
+async function subirTodo(){
+  const m=$('#cMsg'),resp=$('#cResp').value,nota=$('#cNota').value.trim();
+  if($('#cSem').value==='otra'&&!$('#cSemD').value){m.textContent='Eleg\u00ed desde qu\u00e9 d\u00eda la ve el responsable.';return}
+  const falta=PIECES.findIndex(p=>!String(p.f.proveedor).trim());
+  if(falta>=0){m.textContent=`Falta el proveedor de la factura ${falta+1}.`;return}
+  for(const p of PIECES){if(parseImp(p.f.importe)===null){m.textContent='Hay un importe que no se entiende. Escribilo como 1.250.000,50';return}}
+  $('#cGo').disabled=true;const total=PIECES.length;let hechas=0;
+  try{
+    while(PIECES.length){
+      const p=PIECES[0];m.textContent=`Subiendo ${hechas+1} de ${total}\u2026`;
+      const d=await datosDe(p);
+      await api('cargar',PIN,{proveedor:String(p.f.proveedor).trim(),numero:String(p.f.numero||'').trim(),fecha:p.f.fecha||'',importe:parseImp(p.f.importe),empresa:'SAML',responsable:resp,nota,fc:String(p.f.fc||'').trim(),desde:desdeSel()},d.b64,d.mime,d.nombre);
+      PIECES.shift();hechas++;
+    }
+    $('#cFile').value='';$('#cNota').value='';renderRev();toast(`${hechas} factura${hechas===1?'':'s'} cargada${hechas===1?'':'s'}. ${desdeSel()>hoyISO()?'Las ve '+resp+' desde el '+fechaCorta(desdeSel()):'Ya las ve '+resp}`);tab=desdeSel()>hoyISO()?'Programada':'Pendiente';await cargarLista();
+  }catch(e){renderRev();$('#cMsg').textContent=(hechas?`Se cargaron ${hechas}. `:'')+errTxt(e)}
+}
+;(window.__B=window.__B||[]).push(6);
+</script>
+<script>
+
+/* ---------- detalle ---------- */
+let ARCH=null;
+async function detalle(id){
+  cur=FACT.find(f=>f.id===id);if(!cur)return;ARCH=null;
+  const f=cur,v=$('#vDet');$('#vLista').hidden=true;v.hidden=false;window.scrollTo(0,0);
+  const puedeFirmar=f.estado==='Pendiente'&&(ME.admin||f.responsable===ME.nombre);
+  v.innerHTML=`<div class="col">
+   <div class="top"><button class="l" id="volver">\u2190 Volver</button><span class="pill ${esc(f.estado)}">${esc(f.estado)}</span></div>
+   <div class="head"><div><h2>${esc(f.proveedor)}</h2><div class="mu small">${[f.fc?'FC '+f.fc:'',f.numero,f.fecha,ME.admin?'Conforma: '+f.responsable:''].filter(Boolean).map(esc).join(' · ')}</div>${f.nota?`<div class="small">Nota: ${esc(f.nota)}</div>`:''}</div><div class="mono big">${money(f.importe)}</div></div>
+   ${ME.admin&&f.estado==='Pendiente'?`<div class="panel"><div class="g2"><div class="f"><label class="lb" for="eFc">N\u00b0 FC contable</label><input id="eFc" value="${esc(f.fc)}" placeholder="Ej.: 506"></div><div class="f"><label class="lb" for="eDes">La ve el responsable desde</label><input id="eDes" type="date" value="${esc(f.desdeISO||'')}"></div></div><div class="acts"><button type="button" id="eSave">Guardar</button><span id="eMsg" class="mu small">${f.programada?'Programada: se habilita el '+esc(f.desde):''}</span></div></div>`:''}
+   <div class="doc" id="doc"><span class="mu">Cargando factura\u2026</span></div>
+   ${f.estado!=='Pendiente'?`<div class="stamp ${f.estado==='Observada'?'o':''}"><b>${f.estado.toUpperCase()}</b> · ${esc(f.responsable)} · ${esc(f.resuelta)}${f.comentario?` · \u201c${esc(f.comentario)}\u201d`:''}</div>`:''}
+   ${puedeFirmar?`<div class="panel">
+     <input id="com" placeholder="Comentario (obligatorio si observ\u00e1s)" aria-label="Comentario">
+     <canvas class="sig" id="sig" width="600" height="150" aria-label="Recuadro para firmar"></canvas>
+     <div class="acts"><button class="ok" id="bOk">Conformar</button><button id="bObs">Observar</button><button class="l" id="borrar">Borrar firma</button><span id="aMsg" class="mu small"></span></div></div>`:''}
+   <div class="acts">${f.constancia?`<a class="btn" href="${esc(f.constancia)}" target="_blank">Abrir factura firmada (para imprimir)</a>`:''}${ME.admin&&f.estado!=='Pendiente'?'<button id="bRe">Volver a pendiente</button>':''}${ME.admin?'<button class="l" id="bDel" style="color:var(--bad)">Eliminar</button>':''}</div>
+   <div id="delArea"></div>
+  </div>`;
+  $('#volver').onclick=()=>{cur=null;pintarLista()};
+  if(puedeFirmar){pad=makePad($('#sig'));$('#borrar').onclick=()=>pad.clear();$('#bOk').onclick=()=>resolver('Conformada');$('#bObs').onclick=()=>resolver('Observada')}
+  if($('#eSave'))$('#eSave').onclick=async()=>{$('#eSave').disabled=true;try{const r=await api('editar',PIN,f.id,{fc:$('#eFc').value.trim(),desde:$('#eDes').value});Object.assign(f,r);$('#eMsg').textContent='Guardado \u2713';await cargarLista().then(()=>{})}catch(e){$('#eMsg').textContent=errTxt(e);$('#eSave').disabled=false}};
+  if($('#bRe'))$('#bRe').onclick=async()=>{try{await api('reabrir',PIN,f.id);toast('Volvi\u00f3 a pendientes');await cargarLista()}catch(e){toast(errTxt(e))}};
+  if($('#bDel'))$('#bDel').onclick=()=>{
+    $('#delArea').innerHTML=`<div class="msg err">\u00bfEliminar esta factura? Se borra de la planilla y sus archivos van a la papelera de Drive.<div class="acts" style="margin-top:8px"><button type="button" id="delYes" style="color:var(--bad)">S\u00ed, eliminar</button><button type="button" id="delNo">Cancelar</button></div></div>`;
+    $('#delNo').onclick=()=>$('#delArea').innerHTML='';
+    $('#delYes').onclick=async()=>{$('#delYes').disabled=true;try{await api('eliminar',PIN,[f.id]);toast('Factura eliminada');cur=null;await cargarLista()}catch(e){toast(errTxt(e));$('#delYes').disabled=false}};
+  };
+  try{ARCH=await api('verArchivo',PIN,f.id);if(cur!==f)return;await mostrar(ARCH)}catch(e){$('#doc').innerHTML=`<span class="mu">No pude mostrar la factura: ${esc(errTxt(e))}</span>`}
+}
+async function mostrar(a){
+  const box=$('#doc');if(!a){box.innerHTML='<span class="mu">Sin archivo.</span>';return}
+  if(a.mime!=='application/pdf'){box.innerHTML=`<img alt="Factura" src="data:${a.mime};base64,${a.b64}">`;return}
+  const lib=await pdfjs();const d=await lib.getDocument({data:bytesDe(a.b64)}).promise;box.innerHTML='';
+  for(let i=1;i<=Math.min(d.numPages,4);i++){const p=await d.getPage(i),vp=p.getViewport({scale:1.6}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await p.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;box.appendChild(c)}
+  if(d.numPages>4)box.insertAdjacentHTML('beforeend',`<span class="mu small">Se muestran 4 de ${d.numPages} hojas.</span>`);
+}
+;(window.__B=window.__B||[]).push(7);
+</script>
+<script>
+
+/* ---------- firma ---------- */
+function makePad(cv){
+  const x=cv.getContext('2d');let st=[],c=null;x.lineWidth=3;x.lineCap=x.lineJoin='round';x.strokeStyle='#0d1a4d';
+  const H=cv.height;
+  const pt=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width*cv.width,(e.clientY-r.top)/r.height*H]};
+  const draw=()=>{x.clearRect(0,0,cv.width,H);for(const s of st){x.beginPath();s.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.stroke()}};
+  cv.onpointerdown=e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);c=[pt(e)];st.push(c)};
+  cv.onpointermove=e=>{if(!c)return;c.push(pt(e));draw()};
+  cv.onpointerup=cv.onpointercancel=()=>c=null;
+  return{clear(){st=[];draw()},empty:()=>!st.some(s=>s.length>2),png:()=>cv.toDataURL('image/png').split(',')[1]};
+}
+;(window.__B=window.__B||[]).push(8);
+</script>
+<script>
+
+/* ---------- factura firmada (sello compacto, misma hoja) ---------- */
+/* La factura se achica apenas para dejar una franja al pie con qui\u00e9n, cu\u00e1ndo,
+   el comentario y la firma. El tama\u00f1o de hoja no cambia, as\u00ed se imprime igual. */
+async function constancia(f,a,firma,com,estado){
+  const {PDFDocument,StandardFonts,rgb}=PDFLib;const bytes=bytesDe(a.b64);
+  const out=await PDFDocument.create();
+  const font=await out.embedFont(StandardFonts.Helvetica),bold=await out.embedFont(StandardFonts.HelveticaBold);
+  let W=595.28,H=841.89,src=null,img=null;
+  if(a.mime==='application/pdf'){src=await PDFDocument.load(bytes,{ignoreEncryption:true});const s=src.getPage(0).getSize();W=s.width;H=s.height}
+  else{
+    const im=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src='data:'+a.mime+';base64,'+a.b64});
+    const c=document.createElement('canvas'),k=Math.min(1,2200/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;const cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,c.height);cx.drawImage(im,0,0,c.width,c.height);
+    img=await out.embedJpg(bytesDe(c.toDataURL('image/jpeg',.88).split(',')[1]));
+  }
+  const ok=estado==='Conformada',col=ok?rgb(.11,.48,.29):rgb(.66,.36,.02),M=14,sigW=112,sigH=38;
+  const txtW=W-2*M-sigW-30,size=8;
+  const lines=[];String(com||'').split(/\n/).forEach(par=>{let ln='';par.split(/\s+/).filter(Boolean).forEach(w=>{const t=ln?ln+' '+w:w;if(font.widthOfTextAtSize(t,size)>txtW&&ln){lines.push(ln);ln=w}else ln=t});if(ln)lines.push(ln)});
+  const h=Math.max(50,40+lines.length*10);   // alto de la franja
+  const page=out.addPage([W,H]);
+  if(src){const [emb]=await out.embedPdf(src,[0]);const s=(H-h)/H;page.drawPage(emb,{x:(W-W*s)/2,y:h,width:W*s,height:H-h})}
+  else{const sc=Math.min((W-20)/img.width,(H-h-10)/img.height);const w=img.width*sc,ht=img.height*sc;page.drawImage(img,{x:(W-w)/2,y:H-ht-4,width:w,height:ht})}
+  page.drawRectangle({x:M,y:5,width:W-2*M,height:h-9,borderColor:col,borderWidth:1.5,color:rgb(1,1,1)});
+  const ahora=new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  let y=h-20;
+  let tx=M+8;
+  if(f.fc){const t='FC '+f.fc;page.drawText(t,{x:tx,y,size:12,font:bold,color:rgb(.1,.1,.1)});tx+=bold.widthOfTextAtSize(t,12)+10}
+  page.drawText(`${ok?'CONFORMADO':'OBSERVADO'}  ·  ${f.responsable}  ·  ${ahora} hs`,{x:tx,y,size:10,font:bold,color:col});y-=11;
+  page.drawText(`${f.proveedor}${f.numero?'  ·  '+f.numero:''}`.slice(0,90),{x:M+8,y,size:7,font,color:rgb(.4,.4,.4)});y-=11;
+  lines.forEach(l=>{page.drawText(l,{x:M+8,y,size,font,color:rgb(.1,.1,.1)});y-=10});
+  if(firma){const sig=await out.embedPng(bytesDe(firma)),sx=W-M-sigW-8,sy=11;page.drawImage(sig,{x:sx,y:sy,width:sigW,height:sigH})}
+  if(src){const n=src.getPageCount();if(n>1)(await out.copyPages(src,[...Array(n-1).keys()].map(i=>i+1))).forEach(p=>out.addPage(p))}
+  return await out.saveAsBase64();
+}
+async function resolver(estado){
+  const f=cur,com=$('#com').value.trim(),m=$('#aMsg');
+  if(pad.empty()){m.textContent='Falta tu firma en el recuadro.';return}
+  if(estado==='Observada'&&!com){m.textContent='Escrib\u00ed el motivo de la observaci\u00f3n.';return}
+  $('#bOk').disabled=$('#bObs').disabled=true;m.textContent='Guardando\u2026';
+  try{
+    const firma=pad.png();let cons='';
+    if(ARCH){try{cons=await constancia(f,ARCH,firma,com,estado)}catch(e){cons=''}}
+    await api('resolver',PIN,f.id,estado,com,firma,cons);
+    toast(estado==='Conformada'?'Factura conformada \u2713':'Factura observada');cur=null;await cargarLista();
+  }catch(e){m.textContent=errTxt(e);$('#bOk').disabled=$('#bObs').disabled=false}
+}
+;(window.__B=window.__B||[]).push(9);
+</script>
+<script>
+const CLAVE=String(QS.get('t')||'').replace(/[^\w-]/g,'');
+entrar(CLAVE);
+</script>
+</body>
+</html>
