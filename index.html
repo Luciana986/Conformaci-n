@@ -44,6 +44,7 @@ button.l{border:none;background:none;color:var(--ink);padding:2px 4px;font-weigh
 .stamp{border:2px solid var(--ok);color:var(--ok);border-radius:8px;padding:6px 10px;font-size:.9rem}.stamp.o{border-color:var(--wa);color:var(--wa)}
 .pc{display:flex;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg)}
 .pc.rev{border-color:var(--wa);background:var(--was)}
+.dud{border-color:var(--wa)!important;background:#fff7e0!important}
 .pc .th{width:64px;height:90px;object-fit:cover;object-position:top;border-radius:4px;border:1px solid var(--line);background:#fff;flex:none}
 .pc .pf{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;max-width:calc(100% - 32px)}
@@ -77,8 +78,16 @@ button.l{border:none;background:none;color:var(--ink);padding:2px 4px;font-weigh
           <div id="rev" class="col"></div>
         </div>
         <div class="panel"><div class="top"><h3>Avisar por WhatsApp</h3><div class="acts" id="waBtns"></div></div></div>
+        <div class="panel"><details id="rp"><summary><b>Responsables y links</b></summary>
+          <div id="rpList" class="col" style="margin-top:10px"></div>
+          <div class="g2" style="margin-top:10px"><div class="f"><label class="lb" for="rpR">Rol</label><select id="rpR"><option value="resp">Conforma facturas (campo)</option><option value="admin">Administraci\u00f3n (carga facturas)</option></select></div></div>
+          <div class="g2" style="margin-top:10px"><div class="f"><label class="lb" for="rpN">Nombre</label><input id="rpN" maxlength="40" placeholder="Ej.: Marcos"></div><div class="f"><label class="lb" for="rpC">Celular (opcional)</label><input id="rpC" inputmode="tel" placeholder="549..."></div></div>
+          <div class="acts" style="margin-top:8px"><button class="p" type="button" id="rpAdd">Agregar y generar link</button><span id="rpMsg" class="mu"></span></div>
+        </details></div>
       </div>
       <div class="top"><h2 id="tLista">Bandeja</h2><div class="tabs" id="tabs"></div></div>
+      <div class="tabs" id="rfil" hidden></div>
+      <div class="tabs" id="cfil" hidden></div>
       <div id="bulk"></div>
       <div class="list" id="lista"><div class="empty">Cargando…</div></div>
     </div>
@@ -95,8 +104,8 @@ button.l{border:none;background:none;color:var(--ink);padding:2px 4px;font-weigh
 window.__B=[];window.__errs=[];
 window.addEventListener('error',function(e){window.__errs.push(String(e.message||'error')+' (linea '+(e.lineno||'?')+', col '+(e.colno||'?')+')')});
 setTimeout(function(){var el=document.getElementById('aviso');if(!el)return;
- if(window.__B.length<9){el.hidden=false;el.className='msg err';el.textContent='La p\u00e1gina no pudo arrancar. Bloques cargados: '+(window.__B.join(',')||'ninguno')+' de 9. Errores: '+window.__errs.join(' | ')}},6000);
-setTimeout(function(){var el=document.getElementById('aviso');if(el&&!window.__ok&&window.__B.length>=9){el.hidden=false;el.className='msg err';el.textContent='Google est\u00e1 tardando en responder. Recarg\u00e1 la p\u00e1gina con Ctrl+F5.'}},30000);
+ if(window.__B.length<10){el.hidden=false;el.className='msg err';el.textContent='La p\u00e1gina no pudo arrancar. Bloques cargados: '+(window.__B.join(',')||'ninguno')+' de 10. Errores: '+window.__errs.join(' | ')}},6000);
+setTimeout(function(){var el=document.getElementById('aviso');if(el&&!window.__ok&&window.__B.length>=10){el.hidden=false;el.className='msg err';el.textContent='Google est\u00e1 tardando en responder. Recarg\u00e1 la p\u00e1gina con Ctrl+F5.'}},30000);
 </script>
 <script>
 const $=s=>document.querySelector(s);
@@ -121,7 +130,7 @@ const bytesDe=b=>{const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.len
 const b64De=file=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ko;r.readAsDataURL(file)});
 function load(src){return new Promise((ok,ko)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=ko;document.head.appendChild(s)})}
 
-let PIN=null,ME=null,FACT=[],tab='Pendiente',cur=null,pad=null,PIECES=[];
+let PIN=null,ME=null,FACT=[],FILT='',FILT2='',tab='Pendiente',cur=null,pad=null,PIECES=[];
 ;(window.__B=window.__B||[]).push(1);
 </script>
 <script>
@@ -129,7 +138,7 @@ let PIN=null,ME=null,FACT=[],tab='Pendiente',cur=null,pad=null,PIECES=[];
 /* ---------- sesi\u00f3n ---------- */
 async function entrar(pin){
   try{ME=await api('login',pin);PIN=pin;window.__ok=true;aviso('');
-    $('#yo').hidden=false;$('#yoN').textContent=ME.admin?'Administraci\u00f3n':ME.nombre;
+    $('#yo').hidden=false;$('#yoN').textContent=ME.admin?(String(ME.nombre).toUpperCase()==='ADMIN'?'Administraci\u00f3n':ME.nombre+' \u00b7 Administraci\u00f3n'):ME.nombre;
     if(ME.admin){$('#adm').hidden=false;$('#cResp').innerHTML=ME.responsables.map(r=>`<option>${esc(r.nombre)}</option>`).join('');armarSemanas()}
     await cargarLista();
   }catch(e){aviso(errTxt(e),true)}
@@ -148,8 +157,25 @@ function pintarLista(){
   const T=ME.admin?['Pendiente','Programada','Observada','Conformada','Todas']:['Pendiente','Observada','Conformada','Todas'];
   $('#tabs').innerHTML=T.map(t=>`<button type="button" class="${tab===t?'on':''}" data-t="${t}">${t==='Todas'?t:t+'s'}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;pintarLista()});
-  const rows=FACT.filter(f=>tab==='Todas'||(tab==='Programada'?(f.programada&&f.estado==='Pendiente'):(f.estado===tab&&!(tab==='Pendiente'&&f.programada))));
-  $('#lista').innerHTML=rows.length?rows.map(f=>`<div class="row" data-id="${esc(f.id)}"><span class="t">${esc(f.proveedor)}</span><span class="r"><span class="mono">${money(f.importe)}</span><span class="pill ${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}">${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}</span></span><span class="s">${[f.fc?'FC '+f.fc:'',f.numero,ME.admin?f.responsable:'',f.programada&&f.estado==='Pendiente'?'se habilita el '+f.desde:f.estado==='Pendiente'?`hace ${f.dias} d\u00eda${f.dias===1?'':'s'}`:f.resuelta].filter(Boolean).map(esc).join(' \u00b7 ')}</span></div>`).join(''):`<div class="empty">${FACT.length?'No hay facturas en esta vista.':(ME.admin?'Todav\u00eda no hay facturas. Carg\u00e1 la primera arriba.':'No ten\u00e9s facturas asignadas.')}</div>`;
+  let rows=FACT.filter(f=>tab==='Todas'||(tab==='Programada'?(f.programada&&f.estado==='Pendiente'):(f.estado===tab&&!(tab==='Pendiente'&&f.programada))));
+  if(ME.admin){
+    if(FILT&&!ME.responsables.some(r=>r.nombre===FILT))FILT='';
+    const cnt=n=>rows.filter(f=>!n||f.responsable===n).length;
+    $('#rfil').hidden=false;
+    $('#rfil').innerHTML=`<button type="button" class="${FILT?'':'on'}" data-r="">Todos \u00b7 ${cnt('')}</button>`+ME.responsables.map(r=>`<button type="button" class="${FILT===r.nombre?'on':''}" data-r="${esc(r.nombre)}">${esc(r.nombre)} \u00b7 ${cnt(r.nombre)}</button>`).join('');
+    $('#rfil').querySelectorAll('button').forEach(b=>b.onclick=()=>{FILT=b.dataset.r;pintarLista()});
+    if(FILT)rows=rows.filter(f=>f.responsable===FILT);
+    const ads=(ME.administradores||[]).map(a=>a.nombre);
+    if(FILT2&&!ads.includes(FILT2))FILT2='';
+    $('#cfil').hidden=!ads.length;
+    if(ads.length){
+      const c2=n=>rows.filter(f=>!n||f.cargo===n).length;
+      $('#cfil').innerHTML=`<span class="mu small" style="align-self:center">Carg\u00f3:</span><button type="button" class="${FILT2?'':'on'}" data-c="">Todas \u00b7 ${c2('')}</button>`+ads.map(n=>`<button type="button" class="${FILT2===n?'on':''}" data-c="${esc(n)}">${esc(n)} \u00b7 ${c2(n)}</button>`).join('');
+      $('#cfil').querySelectorAll('button').forEach(b=>b.onclick=()=>{FILT2=b.dataset.c;pintarLista()});
+      if(FILT2)rows=rows.filter(f=>f.cargo===FILT2);
+    }
+  }
+  $('#lista').innerHTML=rows.length?rows.map(f=>`<div class="row" data-id="${esc(f.id)}"><span class="t">${esc(f.proveedor)}</span><span class="r"><span class="mono">${money(f.importe)}</span><span class="pill ${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}">${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}</span></span><span class="s">${[f.fc?'FC '+f.fc:'',f.numero,ME.admin?f.responsable:'',ME.admin&&f.cargo?'carg\u00f3 '+f.cargo:'',f.programada&&f.estado==='Pendiente'?'se habilita el '+f.desde:f.estado==='Pendiente'?`hace ${f.dias} d\u00eda${f.dias===1?'':'s'}`:f.resuelta].filter(Boolean).map(esc).join(' \u00b7 ')}</span></div>`).join(''):`<div class="empty">${FACT.length?'No hay facturas en esta vista.':(ME.admin?'Todav\u00eda no hay facturas. Carg\u00e1 la primera arriba.':'No ten\u00e9s facturas asignadas.')}</div>`;
   $('#lista').querySelectorAll('.row').forEach(r=>r.onclick=()=>detalle(r.dataset.id));
   // eliminar varias de una vez (solo administraci\u00f3n)
   const bulk=$('#bulk');bulk.innerHTML='';
@@ -189,32 +215,66 @@ async function textoDePagina(page){
   return rows.map(r=>{r.items.sort((a,b)=>a.transform[4]-b.transform[4]);let s='',end=null;
     for(const it of r.items){const x=it.transform[4];if(end!==null)s+=(x-end>20?' \u00a6 ':' ');s+=it.str.trim();end=x+(it.width||0)}return s}).join('\n');
 }
-const CLIENTE=/serviagro|mari\s*lauqu|\bsaml\b/i;
+const CLIENTE=/pereda\s+agro|eduardo\s+pereda|colina\s+redonda|millaman|serviagro|mari\s*lauqu|agro\s*leben|\bsaml\b|\beph\b/i;
 const TIPOS={1:'A',6:'B',11:'C',51:'M',19:'E',2:'ND A',7:'ND B',12:'ND C',3:'NC A',8:'NC B',13:'NC C'};
-const limpiar=s=>String(s||'').replace(/[\u00a6|]/g,' ').replace(/\s+/g,' ').trim();
-const arNum=s=>{const n=Number(String(s).replace(/\./g,'').replace(',','.'));return isFinite(n)?n:null};
+const limpiar=s=>String(s||'').replace(/[¦|]/g,' ').replace(/\s+/g,' ').trim();
+const arNum=s=>{s=String(s||'').replace(/\s/g,'');const m=s.match(/[.,](\d{1,2})$/),mil=/^\d{1,3}([.,]\d{3})+$/.test(s);let ent=s,dec='';if(m&&!mil){dec=m[1];ent=s.slice(0,s.length-m[0].length)}const n=Number(ent.replace(/[.,]/g,'')+(dec?'.'+dec:''));return isFinite(n)&&ent!==''?n:null};
+const MONTO=/\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?/g;
+function primerMonto(s){const r=String(s).match(MONTO)||[];for(const x of r){const n=arNum(x);if(n!=null&&n>0&&(/[.,]\d{1,2}$/.test(x)||x.replace(/\D/g,'').length>=3))return n}return null}
+/* importe: siempre que diga "Total" (menos Subtotal, IVA, etc.) toma el monto que acompaña */
+function hallarTotal(text){
+  const lines=String(text).replace(/¦/g,' ').split('\n');
+  const t1=[],t2=[];
+  lines.forEach((ln,i)=>{
+    const re=/(sub\s*-?\s*)?total(?:\s+a\s+pagar|\s+general|\s+final|\s+comprobante|\s+factura)?/gi;let m;
+    while((m=re.exec(ln))){
+      if(m[1])continue;
+      const after=ln.slice(m.index+m[0].length),before=ln.slice(0,m.index);
+      if(/^\s*(de\s+)?(iva|impuesto|trib|descuento|bonif|item|bulto|cantidad|kg|unid|percep|retenc|neto|gravado|exento|no\s+grav|parcial|pesos|en\s+letras)/i.test(after))continue;
+      if(/(iva|impuestos?|tributos?|neto)\s*$/i.test(before))continue;
+      let v=primerMonto(after);
+      if(v==null)for(let k=1;k<=2&&v==null&&i+k<lines.length;k++){const nx=lines[i+k];if(/total/i.test(nx))break;v=primerMonto(nx)}
+      if(v==null)continue;
+      (/importe\s*$/i.test(before)?t1:t2).push(v);
+    }
+  });
+  const c=t1.length?t1:t2;
+  return {v:c.length?Math.max(...c):null,dudoso:!c.length||new Set(c).size>1};
+}
 function extraer(text){
-  const r={proveedor:'',numero:'',fecha:'',importe:null,rev:false};
-  let m;const re=/Raz[o\u00f3]n\s+Social:?\s*\u00a6?\s*([^\u00a6\n]+)/gi;
-  while((m=re.exec(text))){const v=limpiar(m[1]);if(v.length>2&&!CLIENTE.test(v)){r.proveedor=v;break}}
-  if(!r.proveedor){
-    const stop=/^(original|duplicado|triplicado|factura|nota|recibo|comprobante|cod|fecha|cuit|ingresos|domicilio|p[a\u00e1]g|c\.?u\.?i\.?t)/i;
-    for(const ln of text.split('\n').slice(0,12)){const seg=limpiar(ln.split('\u00a6')[0]);
-      if(seg.length>=4&&/[A-Za-z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1]{3}/.test(seg)&&!stop.test(seg)&&!CLIENTE.test(seg)){r.proveedor=seg;r.rev=true;break}}
+  const r={proveedor:'',numero:'',fecha:'',importe:null,rev:false,d:[]};
+  let m;
+  const re=/((?:apellido\s+y\s+nombre|nombre\s+y\s+apellido|cliente|señor(?:es)?|senor(?:es)?)\s*[\/:]?\s*(?:o\s+)?)?raz.{1,2}n\s+social\s*:?\s*¦?\s*([^¦\n]*)/gi;
+  const ls=String(text).split('\n');
+  while((m=re.exec(text))){
+    if(m[1])continue;
+    let v=limpiar(m[2]).replace(/\s+(fecha|cuit|c\.?u\.?i\.?t|domicilio|condici|ingresos|punto\s+de|comp\.?\s*n|per.odo).*$/i,'').trim();
+    if(v.length<3){const i=text.slice(0,m.index).split('\n').length-1;const nx=limpiar((ls[i+1]||'').split('¦')[0]);if(nx.length>=3)v=nx}
+    if(v.length>2&&!CLIENTE.test(v)){r.proveedor=v;break}
   }
-  const t=text.replace(/\u00a6/g,' ');
-  m=t.match(/Punto\s+de\s+Venta:?\s*(\d{1,5})[\s\S]{0,60}?Comp\.?\s*(?:Nro|N[\u00b0\u00bao]|N[\u00fau]mero)\.?:?\s*(\d{1,8})/i)||t.match(/\b(\d{4,5})\s*-\s*(\d{8})\b/);
-  if(m){let tipo='';const c=t.match(/C[o\u00f3]d\.?\s*0*(\d{1,3})\b/i);
+  if(!r.proveedor){
+    const stop=/^(original|duplicado|triplicado|factura|nota|recibo|comprobante|cod|fecha|cuit|ingresos|domicilio|p[aá]g|c\.?u\.?i\.?t|c$|a$|b$)/i;
+    for(const ln of ls.slice(0,14)){const seg=limpiar(ln.split('¦')[0]);
+      if(seg.length>=4&&/[A-Za-zÁÉÍÓÚÑ]{3}/.test(seg)&&!stop.test(seg)&&!CLIENTE.test(seg)){r.proveedor=seg;r.d.push('proveedor');break}}
+    if(!r.proveedor)r.d.push('proveedor');
+  }
+  const t=text.replace(/¦/g,' ');
+  m=t.match(/Punto\s+de\s+Venta:?\s*(\d{1,5})[\s\S]{0,60}?Comp\.?\s*(?:Nro|N.{1,2}|N.mero)\.?:?\s*(\d{1,8})/i);
+  if(!m){m=t.match(/\b(\d{4,5})\s*-\s*(\d{8})\b/);if(m)r.d.push('numero')}
+  if(m){let tipo='';const c=t.match(/C.d\.?\s*0*(\d{1,3})\b/i);
     if(c&&TIPOS[+c[1]])tipo=TIPOS[+c[1]];
-    else if(/nota\s+de\s+cr[e\u00e9]dito/i.test(t))tipo='NC';
+    else if(/nota\s+de\s+cr.dito/i.test(t))tipo='NC';
     else{const l=t.match(/\b[Ff][Aa][Cc][Tt][Uu][Rr][Aa]\s+([ABCME])\b/);if(l)tipo=l[1]}
     r.numero=[tipo,String(Number(m[1])).padStart(4,'0')+'-'+m[2].padStart(8,'0')].filter(Boolean).join(' ');
+    if(!tipo&&!r.d.includes('numero'))r.d.push('numero');
   }
-  m=t.match(/Fecha\s+de\s+Emisi[o\u00f3]n:?\s*(\d{2})[/](\d{2})[/](\d{4})/i)||t.match(/\b(\d{2})[/](\d{2})[/](20\d{2})\b/);
-  if(m)r.fecha=`${m[3]}-${m[2]}-${m[1]}`;
-  let im=[...t.matchAll(/Importe\s+Total:?\s*\$?\s*([\d.]+,\d{2})/gi)].map(x=>arNum(x[1]));
-  if(!im.length)im=[...t.matchAll(/\bTOTAL\b:?\s*\$?\s*([\d.]+,\d{2})/gi)].map(x=>arNum(x[1]));
-  if(im.length)r.importe=im[im.length-1];
+  if(!r.numero&&!r.d.includes('numero'))r.d.push('numero');
+  m=t.match(/Fecha\s+de\s+Emisi.n:?\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/i);
+  if(!m){m=t.match(/\b(\d{1,2})[/](\d{1,2})[/](20\d{2})\b/);if(m)r.d.push('fecha')}
+  if(m){const y=m[3].length===2?'20'+m[3]:m[3];r.fecha=`${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;const dt=Date.parse(r.fecha),now=Date.now();if(!(dt<=now+864e5&&dt>=now-400*864e5)&&!r.d.includes('fecha'))r.d.push('fecha')}
+  else r.d.push('fecha');
+  const tot=hallarTotal(t);r.importe=tot.v;if(tot.dudoso)r.d.push('importe');
+  r.rev=r.d.length>0;
   return r;
 }
 const impTxt=n=>n==null?'':Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -247,7 +307,7 @@ async function leerArchivos(files){
           const info=extraer(text);
           const seguida=prev&&((info.numero&&prev.f.numero&&info.numero===prev.f.numero)||(!info.numero&&info.importe==null&&!info.proveedor&&(prev.f.numero||prev.f.importe!=null)));
           if(seguida){prev.pages.push(p-1);if(info.importe!=null)prev.f.importe=info.importe}
-          else{prev={kind:'pdf',file,src,pages:[p-1],thumb:await thumbDe(cv),rev:info.rev||!info.proveedor,f:{proveedor:info.proveedor,numero:info.numero,fecha:info.fecha,importe:info.importe}};PIECES.push(prev)}
+          else{prev={kind:'pdf',file,src,pages:[p-1],thumb:await thumbDe(cv),rev:info.d.length>0,d:info.d,f:{proveedor:info.proveedor,numero:info.numero,fecha:info.fecha,importe:info.importe}};PIECES.push(prev)}
         }
       }else{
         msg(`Leyendo ${file.name}\u2026`);
@@ -256,10 +316,10 @@ async function leerArchivos(files){
         const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(img,0,0,cv.width,cv.height);
         let text='';try{text=await ocr(cv)}catch(e){text=''}
         const info=extraer(text);
-        PIECES.push({kind:'img',file,pages:[0],thumb:await thumbDe(cv),rev:info.rev||!info.proveedor,f:{proveedor:info.proveedor,numero:info.numero,fecha:info.fecha,importe:info.importe}});
+        PIECES.push({kind:'img',file,pages:[0],thumb:await thumbDe(cv),rev:info.d.length>0,d:info.d,f:{proveedor:info.proveedor,numero:info.numero,fecha:info.fecha,importe:info.importe}});
       }
     }catch(e){
-      PIECES.push({kind:'raw',file,pages:[0],thumb:'',rev:true,f:{proveedor:'',numero:'',fecha:'',importe:null}});
+      PIECES.push({kind:'raw',file,pages:[0],thumb:'',rev:true,d:['proveedor','numero','fecha','importe'],f:{proveedor:'',numero:'',fecha:'',importe:null}});
     }
   }
   renderRev();
@@ -285,23 +345,24 @@ function armarSemanas(){
 }
 function desdeSel(){const v=$('#cSem').value;if(v==='ya')return '';if(v==='otra')return $('#cSemD').value||'';return v<=hoyISO()?'':v}
 function pagTxt(p){if(p.kind!=='pdf')return 'archivo';const a=p.pages[0]+1,z=p.pages[p.pages.length-1]+1;return a===z?`hoja ${a}`:`hojas ${a}-${z}`}
+const dc=(p,k)=>p.d&&p.d.includes(k)?'dud':'';
 function renderRev(){
   const box=$('#rev');
   if(!PIECES.length){box.innerHTML='';return}
   const n=PIECES.length;
   box.innerHTML=`<div class="small mu">${n} factura${n===1?'':'s'} detectada${n===1?'':'s'}. Revis\u00e1 los datos y carg\u00e1.</div>`+
   PIECES.map((p,i)=>`<div class="pc ${p.rev?'rev':''}" data-i="${i}">${p.thumb?`<img class="th" alt="" src="${p.thumb}">`:''}<div class="pf">
-    <input data-k="proveedor" placeholder="Proveedor" value="${esc(p.f.proveedor)}" aria-label="Proveedor">
-    <div class="g3"><input data-k="numero" placeholder="N\u00b0 comprobante" value="${esc(p.f.numero)}" aria-label="N\u00famero"><input data-k="fecha" type="date" value="${esc(p.f.fecha)}" aria-label="Fecha"><input data-k="importe" inputmode="decimal" placeholder="Importe" value="${esc(impTxt(p.f.importe))}" aria-label="Importe"></div>
+    <input data-k="proveedor" class="${dc(p,'proveedor')}" placeholder="Proveedor" value="${esc(p.f.proveedor)}" aria-label="Proveedor">
+    <div class="g3"><input data-k="numero" class="${dc(p,'numero')}" placeholder="N\u00b0 comprobante" value="${esc(p.f.numero)}" aria-label="N\u00famero"><input data-k="fecha" class="${dc(p,'fecha')}" type="date" value="${esc(p.f.fecha)}" aria-label="Fecha"><input data-k="importe" class="${dc(p,'importe')}" inputmode="decimal" placeholder="Importe" value="${esc(impTxt(p.f.importe))}" aria-label="Importe"></div>
     <div class="g2"><input data-k="fc" placeholder="N\u00b0 FC contable (se estampa en la factura)" value="${esc(p.f.fc||'')}" aria-label="N\u00famero de FC"></div>
-    <div class="small mu">${esc(p.file.name)} \u00b7 ${pagTxt(p)}${p.rev?' \u00b7 <b>revis\u00e1 el proveedor</b>':''} ${i>0&&p.kind==='pdf'&&PIECES[i-1].file===p.file?'<button type="button" class="l" data-a="unir">Unir con la anterior</button>':''}<button type="button" class="l" data-a="quitar">Quitar</button></div>
+    <div class="small mu">${esc(p.file.name)} \u00b7 ${pagTxt(p)}${p.d&&p.d.length?' \u00b7 <b>revis\u00e1: '+p.d.map(k=>({proveedor:'proveedor',numero:'n\u00famero',fecha:'fecha',importe:'importe'})[k]).join(', ')+'</b>':''} ${i>0&&p.kind==='pdf'&&PIECES[i-1].file===p.file?'<button type="button" class="l" data-a="unir">Unir con la anterior</button>':''}<button type="button" class="l" data-a="quitar">Quitar</button></div>
   </div></div>`).join('')+
   `<div class="acts"><button class="p" id="cGo" type="button">Cargar ${n} y enviar a ${esc($('#cResp').value||'\u2026')}</button><button type="button" id="cCancel">Cancelar</button><span id="cMsg" class="mu"></span></div>`;
   box.querySelectorAll('.pc').forEach(c=>{const i=+c.dataset.i;
-    c.querySelectorAll('input[data-k]').forEach(inp=>inp.oninput=()=>{PIECES[i].f[inp.dataset.k]=inp.dataset.k==='importe'?inp.value:inp.value;if(inp.dataset.k==='proveedor'){PIECES[i].rev=false;c.classList.remove('rev')}});
+    c.querySelectorAll('input[data-k]').forEach(inp=>inp.oninput=()=>{PIECES[i].f[inp.dataset.k]=inp.dataset.k==='importe'?inp.value:inp.value;{const k=inp.dataset.k,P=PIECES[i];if(P.d&&P.d.includes(k)){P.d=P.d.filter(x=>x!==k);inp.classList.remove('dud');P.rev=P.d.length>0;if(!P.rev)c.classList.remove('rev');const sm=c.querySelector('.small b');if(sm){sm.textContent=P.d.length?'revis\u00e1: '+P.d.map(q=>({proveedor:'proveedor',numero:'n\u00famero',fecha:'fecha',importe:'importe'})[q]).join(', '):'';}}}});
     c.querySelectorAll('button[data-a]').forEach(b=>b.onclick=()=>{
       if(b.dataset.a==='quitar'){PIECES.splice(i,1)}
-      else{const a=PIECES[i-1],x=PIECES[i];a.pages=a.pages.concat(x.pages);for(const k of ['proveedor','numero','fecha'])if(!a.f[k])a.f[k]=x.f[k];if(x.f.importe!=null&&x.f.importe!=='')a.f.importe=x.f.importe;PIECES.splice(i,1)}
+      else{const a=PIECES[i-1],x=PIECES[i];a.pages=a.pages.concat(x.pages);a.d=a.d||[];x.d=x.d||[];for(const k of ['proveedor','numero','fecha'])if(!a.f[k]){a.f[k]=x.f[k];a.d=a.d.filter(q=>q!==k);if(x.d.includes(k))a.d.push(k)}if(x.f.importe!=null&&x.f.importe!==''){a.f.importe=x.f.importe;a.d=a.d.filter(q=>q!=='importe');if(x.d.includes('importe'))a.d.push('importe')}a.rev=a.d.length>0;PIECES.splice(i,1)}
       renderRev()});
   });
   $('#cCancel').onclick=()=>{PIECES=[];$('#cFile').value='';renderRev()};
@@ -446,6 +507,38 @@ async function resolver(estado){
   }catch(e){m.textContent=errTxt(e);$('#bOk').disabled=$('#bObs').disabled=false}
 }
 ;(window.__B=window.__B||[]).push(9);
+</script>
+<script>
+/* ---------- responsables y links ---------- */
+function linkDe(r){return ME.url+(ME.url.indexOf('?')>=0?'&':'?')+'t='+r.clave}
+function pintarResp(){
+  if(!ME||!ME.admin)return;
+  const G=[['Conforman (campo)',ME.responsables,'r'],['Administración (cargan)',ME.administradores||[],'a']];
+  $('#rpList').innerHTML=G.map(([t,L,g])=>`<div class="lb" style="margin-top:4px">${t}</div>`+(L.map((r,i)=>`<div class="top" style="gap:6px;flex-wrap:wrap"><b>${esc(r.nombre)}</b><span class="acts"><button type="button" data-a="cp" data-g="${g}" data-i="${i}">Copiar link</button><button type="button" data-a="wa" data-g="${g}" data-i="${i}">WhatsApp</button><button type="button" class="l" data-a="nv" data-g="${g}" data-i="${i}">Link nuevo</button><button type="button" class="l" data-a="rm" data-g="${g}" data-i="${i}">Quitar</button></span></div>`).join('')||'<span class="mu small">Nadie todavía.</span>')).join('');
+  $('#rpList').querySelectorAll('button').forEach(b=>b.onclick=()=>accionResp(b.dataset.a,(b.dataset.g==='a'?ME.administradores:ME.responsables)[b.dataset.i]));
+  $('#cResp').innerHTML=ME.responsables.map(r=>`<option>${esc(r.nombre)}</option>`).join('');
+}
+async function refrescarResp(){const m=await api('login',PIN);ME=m;pintarResp();if(typeof pintarLista==='function'&&typeof FACT!=='undefined'&&FACT)pintarLista()}
+async function accionResp(a,r){
+  const msg=$('#rpMsg');msg.textContent='';
+  try{
+    if(a==='cp'){const l=linkDe(r);try{await navigator.clipboard.writeText(l);toast('Link de '+r.nombre+' copiado')}catch(e){window.prompt('Copiá el link:',l)}return}
+    if(a==='wa'){const t=`Hola ${r.nombre}! Este es tu link personal. Guardalo en el celular:\n${linkDe(r)}`;window.open('https://wa.me/'+(r.celular||'')+'?text='+encodeURIComponent(t),'_blank');return}
+    if(a==='nv'){if(!confirm('Se genera un link nuevo para '+r.nombre+' y el anterior deja de funcionar. ¿Seguir?'))return;await api('renovarResp',PIN,r.nombre);await refrescarResp();toast('Link nuevo para '+r.nombre);return}
+    if(a==='rm'){if(!confirm('Quitar a '+r.nombre+'? Su link deja de funcionar. Sus facturas se conservan.'))return;await api('quitarResp',PIN,r.nombre);await refrescarResp();toast(r.nombre+' quitado')}
+  }catch(e){msg.textContent=errTxt(e)}
+}
+$('#rpAdd').onclick=async()=>{
+  const msg=$('#rpMsg'),n=$('#rpN').value.trim(),c=$('#rpC').value.trim();
+  if(!n){msg.textContent='Escribí el nombre.';return}
+  $('#rpAdd').disabled=true;msg.textContent='';
+  try{await api('agregarResp',PIN,n,c,$('#rpR').value);$('#rpN').value='';$('#rpC').value='';await refrescarResp();toast(n+' agregado. Ya podes copiar su link.')}
+  catch(e){msg.textContent=errTxt(e)}
+  $('#rpAdd').disabled=false;
+};
+const _entrar=entrar;
+entrar=async function(pin){await _entrar(pin);pintarResp()};
+;(window.__B=window.__B||[]).push(10);
 </script>
 <script>
 const CLAVE=String(QS.get('t')||'').replace(/[^\w-]/g,'');
