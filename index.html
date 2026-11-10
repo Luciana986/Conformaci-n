@@ -373,6 +373,7 @@ const fechaCorta=i=>{const[a,m,d]=i.split('-');return +d+' '+MES[m-1]};
 function lunes(d,n){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=(x.getDay()+6)%7;x.setDate(x.getDate()-w+7*n);return x}
 function armarSemanas(){const d=$('#cSemD');d.value=iso(new Date());d.min=iso(new Date())}
 function desdeSel(){const v=$('#cSemD').value;return !v||v<=hoyISO()?'':v}
+function nomCorto(n){n=String(n||'');if(n.length<=26)return n;const m=n.match(/\.[a-z0-9]{2,4}$/i),ext=m?m[0]:'';return n.slice(0,14)+'\u2026'+ext}
 function pagTxt(p){if(p.kind!=='pdf')return 'archivo';const a=p.pages[0]+1,z=p.pages[p.pages.length-1]+1;return a===z?`hoja ${a}`:`hojas ${a}-${z}`}
 const dc=(p,k)=>p.d&&p.d.includes(k)?'dud':'';
 function renderRev(){
@@ -384,7 +385,7 @@ function renderRev(){
     <input data-k="proveedor" class="${dc(p,'proveedor')}" placeholder="Proveedor" value="${esc(p.f.proveedor)}" aria-label="Proveedor">
     <div class="g3"><input data-k="numero" class="${dc(p,'numero')}" placeholder="N\u00b0 comprobante" value="${esc(p.f.numero)}" aria-label="N\u00famero"><input data-k="fecha" class="${dc(p,'fecha')}" type="date" value="${esc(p.f.fecha)}" aria-label="Fecha"><input data-k="importe" class="${dc(p,'importe')}" inputmode="decimal" placeholder="Importe" value="${esc(impTxt(p.f.importe))}" aria-label="Importe"></div>
     <div class="g2"><input data-k="fc" placeholder="N\u00b0 FC contable (se estampa en la factura)" value="${esc(p.f.fc||'')}" aria-label="N\u00famero de FC"></div>
-    <div class="small mu">${esc(p.file.name)} \u00b7 ${pagTxt(p)}${p.d&&p.d.length?' \u00b7 <b>revis\u00e1: '+p.d.map(k=>({proveedor:'proveedor',numero:'n\u00famero',fecha:'fecha',importe:'importe'})[k]).join(', ')+(p.usd?' (factura en d\u00f3lares)':'')+'</b>':''} ${i>0&&p.kind==='pdf'&&PIECES[i-1].file===p.file?'<button type="button" class="l" data-a="unir">Unir con la anterior</button>':''}<button type="button" class="l" data-a="quitar">Quitar</button></div>
+    <div class="small mu">${esc(nomCorto(p.file.name))} \u00b7 ${pagTxt(p)}${p.d&&p.d.length?' \u00b7 <b>revis\u00e1: '+p.d.map(k=>({proveedor:'proveedor',numero:'n\u00famero',fecha:'fecha',importe:'importe'})[k]).join(', ')+(p.usd?' (factura en d\u00f3lares)':'')+'</b>':''} ${i>0&&p.kind==='pdf'&&PIECES[i-1].file===p.file?'<button type="button" class="l" data-a="unir">Unir con la anterior</button>':''}<button type="button" class="l" data-a="quitar">Quitar</button></div>
   </div></div>`).join('')+
   `<div class="acts"><button class="p" id="cGo" type="button">Cargar ${n} y enviar a ${esc($('#cResp').value||'\u2026')}</button><button type="button" id="cCancel">Cancelar</button><span id="cMsg" class="mu"></span></div>`;
   box.querySelectorAll('.pc').forEach(c=>{const i=+c.dataset.i;
