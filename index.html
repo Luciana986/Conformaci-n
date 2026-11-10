@@ -566,7 +566,7 @@ $('#rpAdd').onclick=async()=>{
   $('#rpAdd').disabled=false;
 };
 $('#gear').onclick=()=>{$('#gestion').hidden=!$('#gestion').hidden};
-$('#btnCargar').onclick=()=>{$('#pCarga').hidden=false;$('#btnCargar').hidden=true};
+$('#btnCargar').onclick=()=>{$('#pCarga').hidden=false;$('#btnCargar').hidden=true;try{$('#cFile').click()}catch(e){}};
 $('#cCerrar').onclick=()=>{$('#pCarga').hidden=true;$('#btnCargar').hidden=false};
 const _entrar=entrar;
 entrar=async function(pin){await _entrar(pin);pintarResp()};
