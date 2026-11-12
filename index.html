@@ -172,7 +172,7 @@ function pintarLista(){
   $('#tabs').innerHTML=T.map(t=>`<button type="button" class="${tab===t?'on':''}" data-t="${t}">${t==='Todas'?t:t+'s'}${ME.admin?`<b class="mono">${base.filter(f=>enTab(f,t)).length}</b>`:''}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;pintarLista()});
   let rows=base.filter(f=>enTab(f,tab));
-  $('#lista').innerHTML=rows.length?rows.map(f=>`<div class="row" data-id="${esc(f.id)}"><span class="t">${esc(f.proveedor)}</span><span class="r"><span class="mono">${money(f.importe)}</span><span class="pill ${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}">${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}</span></span><span class="s">${[f.fc?'FC '+f.fc:'',f.numero,ME.admin?f.responsable:'',ME.admin&&f.cargo?'carg\u00f3 '+f.cargo:'',f.programada&&f.estado==='Pendiente'?'se habilita el '+f.desde:f.estado==='Pendiente'?`hace ${f.dias} d\u00eda${f.dias===1?'':'s'}`:f.resuelta].filter(Boolean).map(esc).join(' \u00b7 ')}</span></div>`).join(''):`<div class="empty">${FACT.length?'No hay facturas en esta vista.':(ME.admin?'Todav\u00eda no hay facturas. Carg\u00e1 la primera arriba.':'No ten\u00e9s facturas asignadas.')}</div>`;
+  $('#lista').innerHTML=rows.length?rows.map(f=>`<div class="row" data-id="${esc(f.id)}"><span class="t">${esc(f.proveedor)}</span><span class="r"><span class="mono">${money(f.importe)}</span><span class="pill ${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}">${f.programada&&f.estado==='Pendiente'?'Programada':esc(f.estado)}</span></span><span class="s">${[fcTxt(f.fc)?'FC '+fcTxt(f.fc):'',f.numero,ME.admin?f.responsable:'',ME.admin&&f.cargo?'carg\u00f3 '+f.cargo:'',f.programada&&f.estado==='Pendiente'?'se habilita el '+f.desde:f.estado==='Pendiente'?`hace ${f.dias} d\u00eda${f.dias===1?'':'s'}`:f.resuelta].filter(Boolean).map(esc).join(' \u00b7 ')}</span></div>`).join(''):`<div class="empty">${FACT.length?'No hay facturas en esta vista.':(ME.admin?'Todav\u00eda no hay facturas. Carg\u00e1 la primera arriba.':'No ten\u00e9s facturas asignadas.')}</div>`;
   $('#lista').querySelectorAll('.row').forEach(r=>r.onclick=()=>detalle(r.dataset.id));
   // eliminar varias de una vez (solo administraci\u00f3n)
   const bulk=$('#bulk');bulk.innerHTML='';
@@ -403,13 +403,24 @@ $('#cResp').onchange=()=>{if(PIECES.length)renderRev()};
 </script>
 <script>
 
+async function miniPag(bytes,i){const lib=await pdfjs();const d=await lib.getDocument({data:bytes.slice()}).promise;const pg=await d.getPage(i+1);const vp=pg.getViewport({scale:.25});const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;return x.getImageData(0,0,c.width,c.height).data}
+function difer(a,b){if(a.length!==b.length)return 1;let s=0;for(let i=0;i<a.length;i+=4)s+=Math.abs(a[i]-b[i]);return s/(a.length/4)/255}
 async function datosDe(p){
   const nombre=(p.f.proveedor||'factura').replace(/[\[/]:*?"<>|]/g,'-').replace(/[.\s]+$/,'')||'factura';
   if(p.kind==='pdf'){
     const {PDFDocument}=PDFLib;
     const src=p.src.doc||(p.src.doc=await PDFDocument.load(p.src.bytes,{ignoreEncryption:true}));
+    // Archivo completo: se sube tal cual, sin tocarlo (as\u00ed no se puede da\u00f1ar)
+    if(p.pages.length===src.getPageCount()&&p.pages.every((v,i)=>v===i))return{b64:await b64De(p.file),mime:'application/pdf',nombre:nombre+'.pdf'};
     const out=await PDFDocument.create();(await out.copyPages(src,p.pages)).forEach(x=>out.addPage(x));
-    return{b64:await out.saveAsBase64(),mime:'application/pdf',nombre:nombre+'.pdf'};
+    const b64=await out.saveAsBase64();
+    // Control: se compara c\u00f3mo se ve cada hoja copiada contra la original. Si no coincide (PDF raro), se arma con im\u00e1genes.
+    let bien=true;
+    try{const cp=bytesDe(b64);for(let k=0;k<p.pages.length&&bien;k++){if(difer(await miniPag(cp,k),await miniPag(p.src.bytes,p.pages[k]))>0.02)bien=false}}catch(e){bien=false}
+    if(bien)return{b64,mime:'application/pdf',nombre:nombre+'.pdf'};
+    const R=await rasterPdf(p.src.bytes),o2=await PDFDocument.create();
+    for(const i of p.pages){const r=R[i],im=await o2.embedJpg(bytesDe(r.b)),pp=o2.addPage([r.w,r.h]);pp.drawImage(im,{x:0,y:0,width:r.w,height:r.h})}
+    return{b64:await o2.saveAsBase64(),mime:'application/pdf',nombre:nombre+'.pdf'};
   }
   const ext=(p.file.name.match(/\.\w+$/)||['.jpg'])[0];
   return{b64:await b64De(p.file),mime:p.file.type||(p.kind==='raw'&&/\.pdf$/i.test(p.file.name)?'application/pdf':'image/jpeg'),nombre:nombre+ext};
@@ -442,7 +453,7 @@ async function detalle(id){
   const puedeFirmar=f.estado==='Pendiente'&&(ME.admin||f.responsable===ME.nombre);
   v.innerHTML=`<div class="col">
    <div class="top"><button class="l" id="volver">\u2190 Volver</button><span class="pill ${esc(f.estado)}">${esc(f.estado)}</span></div>
-   <div class="head"><div><h2>${esc(f.proveedor)}</h2><div class="mu small">${[f.fc?'FC '+f.fc:'',f.numero,f.fecha,ME.admin?'Conforma: '+f.responsable:''].filter(Boolean).map(esc).join(' \u00b7 ')}</div>${f.nota?`<div class="small">Nota: ${esc(f.nota)}</div>`:''}</div><div class="mono big">${money(f.importe)}</div></div>
+   <div class="head"><div><h2>${esc(f.proveedor)}</h2><div class="mu small">${[fcTxt(f.fc)?'FC '+fcTxt(f.fc):'',f.numero,f.fecha,ME.admin?'Conforma: '+f.responsable:''].filter(Boolean).map(esc).join(' \u00b7 ')}</div>${f.nota?`<div class="small">Nota: ${esc(f.nota)}</div>`:''}</div><div class="mono big">${money(f.importe)}</div></div>
    ${ME.admin&&f.estado==='Pendiente'?`<div class="panel"><div class="g2"><div class="f"><label class="lb" for="eFc">N\u00b0 FC contable</label><input id="eFc" value="${esc(f.fc)}" placeholder="Ej.: 506"></div><div class="f"><label class="lb" for="eDes">La ve el responsable desde</label><input id="eDes" type="date" value="${esc(f.desdeISO||'')}"></div></div><div class="acts"><button type="button" id="eSave">Guardar</button><span id="eMsg" class="mu small">${f.programada?'Programada: se habilita el '+esc(f.desde):''}</span></div></div>`:''}
    <div class="doc" id="doc"><span class="mu">Cargando factura\u2026</span></div>
    ${f.estado!=='Pendiente'?`<div class="stamp ${f.estado==='Observada'?'o':''}"><b>${f.estado.toUpperCase()}</b> \u00b7 ${esc(f.responsable)} \u00b7 ${esc(f.resuelta)}${f.comentario?` \u00b7 \u201c${esc(f.comentario)}\u201d`:''}</div>`:''}
@@ -450,12 +461,29 @@ async function detalle(id){
      <input id="com" placeholder="Comentario (obligatorio si observ\u00e1s)" aria-label="Comentario">
      <canvas class="sig" id="sig" width="600" height="150" aria-label="Recuadro para firmar"></canvas>
      <div class="acts"><button class="ok" id="bOk">Conformar</button><button id="bObs">Observar</button><button class="l" id="borrar">Borrar firma</button><span id="aMsg" class="mu small"></span></div></div>`:''}
-   <div class="acts">${f.constancia?`<a class="btn" href="${esc(f.constancia)}" target="_blank">Abrir factura firmada (para imprimir)</a>`:''}${ME.admin&&f.estado!=='Pendiente'?'<button id="bRe">Volver a pendiente</button>':''}${ME.admin?'<button class="l" id="bDel" style="color:var(--bad)">Eliminar</button>':''}</div>
+   <div class="acts">${f.constancia?`<a class="btn" href="${esc(f.constancia)}" target="_blank">Abrir factura firmada (para imprimir)</a>`:''}${ME.admin&&f.estado!=='Pendiente'?'<button id="bRe">Volver a pendiente</button><button id="bFix">Rehacer factura firmada</button>':''}${ME.admin?'<button class="l" id="bDel" style="color:var(--bad)">Eliminar</button>':''}</div>
+   <div id="fixArea"></div>
    <div id="delArea"></div>
   </div>`;
   $('#volver').onclick=()=>{cur=null;pintarLista()};
   if(puedeFirmar){pad=makePad($('#sig'));$('#borrar').onclick=()=>pad.clear();$('#bOk').onclick=()=>resolver('Conformada');$('#bObs').onclick=()=>resolver('Observada')}
   if($('#eSave'))$('#eSave').onclick=async()=>{$('#eSave').disabled=true;try{const r=await api('editar',PIN,f.id,{fc:$('#eFc').value.trim(),desde:$('#eDes').value});Object.assign(f,r);$('#eMsg').textContent='Guardado \u2713';await cargarLista().then(()=>{})}catch(e){$('#eMsg').textContent=errTxt(e);$('#eSave').disabled=false}};
+  if($('#bFix'))$('#bFix').onclick=()=>{
+    $('#fixArea').innerHTML=`<div class="panel"><div class="small">Se rehace la factura firmada con la misma firma, fecha y comentario de ${esc(f.responsable)}. <b>No cambia nada del registro.</b></div><div class="f"><label class="lb" for="fixFile">Si la factura se ve en blanco, eleg\u00ed el PDF original (opcional)</label><input id="fixFile" type="file" accept="application/pdf,image/*"></div><div class="acts"><button class="ok" type="button" id="fixGo">Rehacer</button><button class="l" type="button" id="fixNo">Cancelar</button><span id="fixMsg" class="mu small"></span></div></div>`;
+    $('#fixNo').onclick=()=>$('#fixArea').innerHTML='';
+    $('#fixGo').onclick=async()=>{
+      const m=$('#fixMsg'),fl=$('#fixFile').files[0];$('#fixGo').disabled=true;m.textContent='Rehaciendo\u2026';
+      try{
+        const firma=await api('verFirma',PIN,f.id);if(!firma)throw new Error('No encontr\u00e9 la firma guardada.');
+        let src=ARCH,nuevo=false;
+        if(fl){src={mime:fl.type||'application/pdf',b64:await b64De(fl)};nuevo=true}
+        if(!src)throw new Error('No hay archivo de la factura. Eleg\u00ed el PDF original.');
+        const cons=await constancia(f,src,firma,f.comentario,f.estado,f.resuelta);
+        const r=await api('repararFirmada',PIN,f.id,cons,nuevo?src.b64:'',nuevo?src.mime:'');
+        Object.assign(f,r);toast('Factura firmada rehecha \u2713');await cargarLista();
+      }catch(e){m.textContent=errTxt(e);$('#fixGo').disabled=false}
+    };
+  };
   if($('#bRe'))$('#bRe').onclick=async()=>{try{await api('reabrir',PIN,f.id);toast('Volvi\u00f3 a pendientes');await cargarLista()}catch(e){toast(errTxt(e))}};
   if($('#bDel'))$('#bDel').onclick=()=>{
     $('#delArea').innerHTML=`<div class="msg err">\u00bfEliminar esta factura? Se borra de la planilla y sus archivos van a la papelera de Drive.<div class="acts" style="margin-top:8px"><button type="button" id="delYes" style="color:var(--bad)">S\u00ed, eliminar</button><button type="button" id="delNo">Cancelar</button></div></div>`;
@@ -493,12 +521,33 @@ function makePad(cv){
 /* ---------- factura firmada (sello compacto, misma hoja) ---------- */
 /* La factura se achica apenas para dejar una franja al pie con qui\u00e9n, cu\u00e1ndo,
    el comentario y la firma. El tama\u00f1o de hoja no cambia, as\u00ed se imprime igual. */
-async function constancia(f,a,firma,com,estado){
+async function rasterPdf(bytes){
+  const lib=await pdfjs();const doc=await lib.getDocument({data:bytes.slice()}).promise,R=[];
+  for(let n=1;n<=doc.numPages;n++){
+    const pg=await doc.getPage(n),v1=pg.getViewport({scale:1}),k=Math.min(2.5,2200/Math.max(v1.width,v1.height)),vp=pg.getViewport({scale:k});
+    const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);const cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,c.height);
+    await pg.render({canvasContext:cx,viewport:vp}).promise;
+    R.push({b:c.toDataURL('image/jpeg',.9).split(',')[1],w:v1.width,h:v1.height});
+  }
+  return R;
+}
+const fcTxt=v=>String(v||'').replace(/^\s*FC\s*[:.\-]?\s*/i,'').trim();
+async function constancia(f,a,firma,com,estado,cuando){
   const {PDFDocument,StandardFonts,rgb}=PDFLib;const bytes=bytesDe(a.b64);
   const out=await PDFDocument.create();
   const font=await out.embedFont(StandardFonts.Helvetica),bold=await out.embedFont(StandardFonts.HelveticaBold);
   let W=595.28,H=841.89,src=null,img=null;
-  if(a.mime==='application/pdf'){src=await PDFDocument.load(bytes,{ignoreEncryption:true});const s=src.getPage(0).getSize();W=s.width;H=s.height}
+  let ras=null;
+  if(a.mime==='application/pdf'){
+    try{
+      src=await PDFDocument.load(bytes,{ignoreEncryption:true});const s=src.getPage(0).getSize();W=s.width;H=s.height;
+      const t=await PDFDocument.create();await t.embedPdf(src,[0]);   // prueba: algunos PDF (p. ej. de ciertos sistemas) no se pueden copiar tal cual
+      const n0=src.getPageCount();if(n0>1)await t.copyPages(src,[...Array(n0-1).keys()].map(i=>i+1));
+      await t.save();   // los errores de PDF aparecen recién al guardar
+    }catch(e){   // plan B: se arma la hoja como imagen (se ve igual y se imprime igual)
+      src=null;ras=await rasterPdf(bytes);W=ras[0].w;H=ras[0].h;img=await out.embedJpg(bytesDe(ras[0].b));
+    }
+  }
   else{
     const im=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src='data:'+a.mime+';base64,'+a.b64});
     const c=document.createElement('canvas'),k=Math.min(1,2200/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;const cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,c.height);cx.drawImage(im,0,0,c.width,c.height);
@@ -512,15 +561,16 @@ async function constancia(f,a,firma,com,estado){
   if(src){const [emb]=await out.embedPdf(src,[0]);const s=(H-h)/H;page.drawPage(emb,{x:(W-W*s)/2,y:h,width:W*s,height:H-h})}
   else{const sc=Math.min((W-20)/img.width,(H-h-10)/img.height);const w=img.width*sc,ht=img.height*sc;page.drawImage(img,{x:(W-w)/2,y:H-ht-4,width:w,height:ht})}
   page.drawRectangle({x:M,y:5,width:W-2*M,height:h-9,borderColor:col,borderWidth:1.5,color:rgb(1,1,1)});
-  const ahora=new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  const ahora=cuando||new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
   let y=h-20;
   let tx=M+8;
-  if(f.fc){const t='FC '+f.fc;page.drawText(t,{x:tx,y,size:12,font:bold,color:rgb(.1,.1,.1)});tx+=bold.widthOfTextAtSize(t,12)+10}
+  if(fcTxt(f.fc)){const t='FC '+fcTxt(f.fc);page.drawText(t,{x:tx,y,size:12,font:bold,color:rgb(.1,.1,.1)});tx+=bold.widthOfTextAtSize(t,12)+10}
   page.drawText(`${ok?'CONFORMADO':'OBSERVADO'}  \u00b7  ${f.responsable}  \u00b7  ${ahora} hs`,{x:tx,y,size:10,font:bold,color:col});y-=11;
   page.drawText(`${f.proveedor}${f.numero?'  \u00b7  '+f.numero:''}`.slice(0,90),{x:M+8,y,size:7,font,color:rgb(.4,.4,.4)});y-=11;
   lines.forEach(l=>{page.drawText(l,{x:M+8,y,size,font,color:rgb(.1,.1,.1)});y-=10});
   if(firma){const sig=await out.embedPng(bytesDe(firma)),sx=W-M-sigW-8,sy=11;page.drawImage(sig,{x:sx,y:sy,width:sigW,height:sigH})}
   if(src){const n=src.getPageCount();if(n>1)(await out.copyPages(src,[...Array(n-1).keys()].map(i=>i+1))).forEach(p=>out.addPage(p))}
+  else if(ras&&ras.length>1){for(let i=1;i<ras.length;i++){const r=ras[i],im=await out.embedJpg(bytesDe(r.b)),pp=out.addPage([r.w,r.h]);pp.drawImage(im,{x:0,y:0,width:r.w,height:r.h})}}
   return await out.saveAsBase64();
 }
 async function resolver(estado){
@@ -530,9 +580,9 @@ async function resolver(estado){
   $('#bOk').disabled=$('#bObs').disabled=true;m.textContent='Guardando\u2026';
   try{
     const firma=pad.png();let cons='';
-    if(ARCH){try{cons=await constancia(f,ARCH,firma,com,estado)}catch(e){cons=''}}
+    let consErr=false;if(ARCH){try{cons=await constancia(f,ARCH,firma,com,estado)}catch(e){cons='';consErr=true;console.error('constancia',e)}}
     await api('resolver',PIN,f.id,estado,com,firma,cons);
-    toast(estado==='Conformada'?'Factura conformada \u2713':'Factura observada');cur=null;await cargarLista();
+    toast((estado==='Conformada'?'Factura conformada \u2713':'Factura observada')+(consErr?' (no se pudo armar la factura firmada)':''));cur=null;await cargarLista();
   }catch(e){m.textContent=errTxt(e);$('#bOk').disabled=$('#bObs').disabled=false}
 }
 ;(window.__B=window.__B||[]).push(9);
